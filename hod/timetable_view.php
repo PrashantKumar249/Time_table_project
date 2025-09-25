@@ -1,5 +1,6 @@
 <?php
 include '../include/db.php';
+include 'header.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id']) || !isset($_SESSION['role'])) {
@@ -57,92 +58,18 @@ if ($selected_section_id) {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>View Timetable - Timetable Management System</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background-color: #f0f0f0;
-        }
-        .container {
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        .nav {
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .nav a {
-            margin: 0 10px;
-            color: #007bff;
-            text-decoration: none;
-        }
-        .nav a:hover {
-            text-decoration: underline;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #555;
-        }
-        select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 10px;
-            border: 1px solid #ccc;
-            text-align: left;
-        }
-        th {
-            background-color: #007bff;
-            color: white;
-        }
-    </style>
-    <script>
-        function submitForm() {
-            document.getElementById('viewForm').submit();
-        }
-    </script>
-</head>
-<body>
-    <div class="container">
-        <h1>View Timetable</h1>
-        <div class="nav">
-            <a href="<?php echo $_SESSION['role'] === 'hod' ? 'hod_dashboard.php' : '../faculty/faculty_dashboard.php'; ?>">Back to Dashboard</a>
-            <?php if ($selected_section_id): ?>
-                <a href="export_pdf.php?section_id=<?php echo $selected_section_id; ?>">Export to PDF</a>
-            <?php endif; ?>
-        </div>
-        <form id="viewForm" method="get">
-            <div class="form-group">
-                <label for="section_id">Select Section</label>
-                <select id="section_id" name="section_id" onchange="submitForm()">
-                    <option value="">Select a section</option>
+<div class="space-y-6">
+    <div class="text-center">
+        <h2 class="text-3xl font-extrabold text-gray-900">View Timetable</h2>
+        <p class="mt-2 text-sm text-gray-600">Select a section to view its timetable.</p>
+    </div>
+
+    <form id="viewForm" method="get" class="bg-white rounded-lg shadow-md p-6 space-y-4">
+        <div class="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0">
+            <div class="flex-1">
+                <label for="section_id" class="block text-sm font-medium text-gray-700 mb-1">Select Section</label>
+                <select id="section_id" name="section_id" onchange="submitForm()" class="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">-- Select a section --</option>
                     <?php foreach ($sections as $section): ?>
                         <option value="<?php echo $section['section_id']; ?>" <?php echo $selected_section_id == $section['section_id'] ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($section['branch_name'] . ' - ' . $section['section_name'] . ' (Year ' . $section['year'] . ', Sem ' . $section['semester'] . ')'); ?>
@@ -150,29 +77,49 @@ if ($selected_section_id) {
                     <?php endforeach; ?>
                 </select>
             </div>
-        </form>
-        <?php if ($timetable): ?>
-            <table>
-                <tr>
-                    <th>Day</th>
-                    <th>Time</th>
-                    <th>Subject</th>
-                    <th>Faculty</th>
-                    <th>Room</th>
-                </tr>
-                <?php foreach ($timetable as $slot): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($slot['day_of_week']); ?></td>
-                        <td><?php echo htmlspecialchars($slot['start_time'] . ' - ' . $slot['end_time']); ?></td>
-                        <td><?php echo htmlspecialchars($slot['subject_name']); ?></td>
-                        <td><?php echo htmlspecialchars($slot['faculty_name']); ?></td>
-                        <td><?php echo htmlspecialchars($slot['room_name']); ?></td>
+            <?php if ($selected_section_id): ?>
+                <a href="export_pdf.php?section_id=<?php echo $selected_section_id; ?>" class="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 text-center">Export to PDF</a>
+            <?php endif; ?>
+        </div>
+    </form>
+
+    <?php if ($timetable): ?>
+        <div class="bg-white rounded-lg shadow-md p-6 overflow-x-auto">
+            <table class="min-w-full text-left table-auto">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="p-2 font-medium text-gray-700">Day</th>
+                        <th class="p-2 font-medium text-gray-700">Time</th>
+                        <th class="p-2 font-medium text-gray-700">Subject</th>
+                        <th class="p-2 font-medium text-gray-700">Faculty</th>
+                        <th class="p-2 font-medium text-gray-700">Room</th>
+                        <!-- Add actions for HOD to edit/delete -->
                     </tr>
-                <?php endforeach; ?>
+                </thead>
+                <tbody>
+                    <?php foreach ($timetable as $slot): ?>
+                        <tr class="border-t border-gray-200 hover:bg-gray-100 transition-colors duration-150">
+                            <td class="p-2"><?php echo htmlspecialchars($slot['day_of_week']); ?></td>
+                            <td class="p-2"><?php echo htmlspecialchars(date('h:i A', strtotime($slot['start_time'])) . ' - ' . date('h:i A', strtotime($slot['end_time']))); ?></td>
+                            <td class="p-2"><?php echo htmlspecialchars($slot['subject_name']); ?></td>
+                            <td class="p-2"><?php echo htmlspecialchars($slot['faculty_name']); ?></td>
+                            <td class="p-2"><?php echo htmlspecialchars($slot['room_name']); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
             </table>
-        <?php elseif ($selected_section_id): ?>
+        </div>
+    <?php elseif ($selected_section_id): ?>
+        <div class="bg-yellow-50 p-4 rounded-md text-yellow-800 border border-yellow-200">
             <p>No timetable available for this section.</p>
-        <?php endif; ?>
-    </div>
-</body>
-</html>
+        </div>
+    <?php endif; ?>
+</div>
+
+<script>
+    function submitForm() {
+        document.getElementById('viewForm').submit();
+    }
+</script>
+
+<?php include 'footer.php'; ?>

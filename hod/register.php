@@ -1,219 +1,311 @@
 <?php
+session_start();
 include '../include/db.php';
 
-// Check if already logged in
-if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'hod') {
-    header('Location: dashboard.php');
-    exit;
-}
-
-// Handle registration form submission
 $errors = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = mysqli_real_escape_string($conn, $_POST['username']);
-    $password = mysqli_real_escape_string($conn, $_POST['password']);
-    $confirm_password = mysqli_real_escape_string($conn, $_POST['confirm_password']);
-    $hod_name = mysqli_real_escape_string($conn, $_POST['hod_name']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $branch_id = intval($_POST['branch_id']);
+$success = '';
 
-    // Validation
-    if (empty($username) || empty($password) || empty($confirm_password) || empty($hod_name) || empty($email) || empty($branch_id)) {
-        $errors[] = 'All fields are required';
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Invalid email format';
-    } elseif ($password !== $confirm_password) {
-        $errors[] = 'Passwords do not match';
-    } elseif (strlen($password) < 6) {
-        $errors[] = 'Password must be at least 6 characters long';
-    } else {
-        // Check if username or email already exists
-        $check_query = "SELECT user_id FROM users WHERE username = '$username' OR email = '$email'";
-        $check_result = mysqli_query($conn, $check_query);
-        if (mysqli_num_rows($check_result) > 0) {
-            $errors[] = 'Username or email already registered';
-        } else {
-            // Check if branch_id exists
-            $branch_query = "SELECT branch_id FROM branches WHERE branch_id = $branch_id";
-            $branch_result = mysqli_query($conn, $branch_query);
-            if (mysqli_num_rows($branch_result) == 0) {
-                $errors[] = 'Invalid branch selected';
-            } else {
-                // Insert into users table (plain-text password, no hashing)
-                $insert_user_query = "INSERT INTO users (username, password, role, email) VALUES ('$username', '$password', 'hod', '$email')";
-                if (mysqli_query($conn, $insert_user_query)) {
-                    $user_id = mysqli_insert_id($conn); // Get the inserted user_id
-                    // Insert into hod table (self-created for initial HOD)
-                    $insert_hod_query = "INSERT INTO hod (user_id, branch_id, hod_name, email, created_by) VALUES ($user_id, $branch_id, '$hod_name', '$email', $user_id)";
-                    if (mysqli_query($conn, $insert_hod_query)) {
-                        // Set session variables and redirect to dashboard
-                        $_SESSION['user_id'] = $user_id;
-                        $_SESSION['role'] = 'hod';
-                        header('Location: dashboard.php');
-                        exit;
-                    } else {
-                        $errors[] = 'Failed to register HOD details: ' . mysqli_error($conn);
-                        // Rollback: delete the user if hod insertion fails
-                        mysqli_query($conn, "DELETE FROM users WHERE user_id = $user_id");
-                    }
-                } else {
-                    $errors[] = 'Registration failed: ' . mysqli_error($conn);
-                }
-            }
-        }
+// Fetch all branches from the database for the dropdown
+$branches_query = "SELECT branch_name FROM branches ORDER BY branch_name";
+$branches_result = mysqli_query($conn, $branches_query);
+$existing_branches = [];
+if ($branches_result) {
+    while ($row = mysqli_fetch_assoc($branches_result)) {
+        $existing_branches[] = $row['branch_name'];
     }
 }
 
-// Fetch branches for dropdown
-$branches_query = "SELECT branch_id, branch_name FROM branches";
-$branches_result = mysqli_query($conn, $branches_query);
-?>
+// Handle form submission for new HOD registration
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_hod'])) {
+    // Sanitize and validate inputs
+    $username = mysqli_real_escape_string($conn, $_POST['username']);
+    $password = mysqli_real_escape_string($conn, $_POST['password']);
+    $hod_name = mysqli_real_escape_string($conn, $_POST['hod_name']);
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $college_name = mysqli_real_escape_string($conn, $_POST['college_name']);
+    $address = mysqli_real_escape_string($conn, $_POST['address']);
 
+    // Determine the branch name from the form
+    $selected_branch = mysqli_real_escape_string($conn, $_POST['branch_name']);
+    $new_branch = isset($_POST['new_branch_name']) ? mysqli_real_escape_string($conn, $_POST['new_branch_name']) : '';
+
+    if ($selected_branch === 'other' && !empty($new_branch)) {
+        $branch_name = $new_branch;
+    } else if ($selected_branch !== 'other' && in_array($selected_branch, $existing_branches)) {
+        $branch_name = $selected_branch;
+    } else {
+        $errors[] = 'Invalid branch selection.';
+    }
+
+    // Check for file upload
+    $logo_path = '';
+    if (isset($_FILES['college_logo']) && $_FILES['college_logo']['error'] === UPLOAD_ERR_OK) {
+        $logo_tmp_name = $_FILES['college_logo']['tmp_name'];
+        $logo_name = basename($_FILES['college_logo']['name']);
+        $logo_extension = pathinfo($logo_name, PATHINFO_EXTENSION);
+        
+        // Define the target directory
+        $upload_dir = '../logo/';
+    }
+
+    if (empty($username) || empty($password) || empty($hod_name) || empty($email) || empty($branch_name) || empty($college_name) || empty($address) || !isset($_FILES['college_logo']) || $_FILES['college_logo']['error'] !== UPLOAD_ERR_OK) {
+        $errors[] = 'All fields are required.';
+    } else {
+        // Start a transaction for data integrity
+        mysqli_begin_transaction($conn);
+        try {
+            // Check if the determined branch already exists
+            $query = "SELECT branch_id FROM branches WHERE branch_name = '$branch_name'";
+            $result = mysqli_query($conn, $query);
+            if ($result && mysqli_num_rows($result) > 0) {
+                $branch = mysqli_fetch_assoc($result);
+                $branch_id = $branch['branch_id'];
+            } else {
+                // If branch doesn't exist, create it
+                $query = "INSERT INTO branches (branch_name) VALUES ('$branch_name')";
+                if (!mysqli_query($conn, $query)) {
+                    throw new Exception('Error creating branch: ' . mysqli_error($conn));
+                }
+                $branch_id = mysqli_insert_id($conn);
+            }
+
+            // Insert into users table
+            $query = "INSERT INTO users (username, password, role, email) VALUES ('$username', '$password', 'hod', '$email')";
+            if (!mysqli_query($conn, $query)) {
+                throw new Exception('Error creating user: ' . mysqli_error($conn));
+            }
+            $user_id = mysqli_insert_id($conn);
+
+            // Handle the logo file upload after user_id is generated
+            $logo_filename = $user_id . '.' . $logo_extension;
+            $logo_full_path = $upload_dir . $logo_filename;
+            if (!move_uploaded_file($logo_tmp_name, $logo_full_path)) {
+                throw new Exception('Error uploading logo file.');
+            }
+
+            // Insert into hod table with only the filename
+            $query = "INSERT INTO hod (user_id, branch_id, hod_name, email, created_by, college_name, address, college_logo)
+                      VALUES ($user_id, $branch_id, '$hod_name', '$email', $user_id, '$college_name', '$address', '$logo_filename')";
+            if (!mysqli_query($conn, $query)) {
+                throw new Exception('Error adding HOD details: ' . mysqli_error($conn));
+            }
+
+            mysqli_commit($conn);
+
+            // Set session variables and redirect
+            $_SESSION['user_id'] = $user_id;
+            $_SESSION['role'] = 'hod';
+            
+            header('Location: hod_dashboard.php');
+            exit;
+        } catch (Exception $e) {
+            mysqli_rollback($conn);
+            $errors[] = $e->getMessage();
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HOD Register - Timetable Management System</title>
+    <title>Register - Timetable Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
         }
         .register-container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            background-color: #fff;
+            padding: 2.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 500px;
         }
         h2 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #1f2937;
             text-align: center;
-            color: #333;
+            margin-bottom: 1.5rem;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        @media (min-width: 640px) {
+            .form-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .full-width {
+                grid-column: span 2;
+            }
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 0;
         }
-        label {
+        .form-group label {
             display: block;
-            margin-bottom: 5px;
-            color: #555;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4b5563;
+            margin-bottom: 0.5rem;
         }
-        input[type="text"], input[type="password"], input[type="email"], select {
+        .required-star {
+            color: red;
+        }
+        .form-group input, .form-group select {
+            display: block;
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
             box-sizing: border-box;
         }
-        button {
+        .form-group input[type="file"] {
+            padding: 0.5rem;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        .message-container {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        .success-message {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .error-message {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .btn {
             width: 100%;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
+            padding: 0.75rem;
+            background-color: #2563eb;
+            color: #fff;
             border: none;
-            border-radius: 4px;
+            border-radius: 0.5rem;
+            font-weight: 600;
             cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
         }
-        button:hover {
-            background-color: #0056b3;
+        .btn:hover {
+            background-color: #1d4ed8;
         }
-        .error {
-            color: red;
-            font-size: 14px;
+        .login-link {
             text-align: center;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #4b5563;
         }
-        .switch-auth {
-            text-align: center;
-            margin-top: 10px;
-        }
-        .switch-auth a {
-            color: #007bff;
+        .login-link a {
+            color: #2563eb;
+            font-weight: 600;
             text-decoration: none;
         }
-        .switch-auth a:hover {
+        .login-link a:hover {
             text-decoration: underline;
         }
-    </style>
-    <script>
-        function validateForm() {
-            var username = document.getElementById('username').value;
-            var password = document.getElementById('password').value;
-            var confirm_password = document.getElementById('confirm_password').value;
-            var hod_name = document.getElementById('hod_name').value;
-            var email = document.getElementById('email').value;
-            var branch_id = document.getElementById('branch_id').value;
-            if (!username || !password || !confirm_password || !hod_name || !email || !branch_id) {
-                alert('All fields are required');
-                return false;
-            }
-            if (password !== confirm_password) {
-                alert('Passwords do not match');
-                return false;
-            }
-            if (password.length < 6) {
-                alert('Password must be at least 6 characters');
-                return false;
-            }
-            return true;
+        .hidden {
+            display: none;
         }
-    </script>
+    </style>
 </head>
 <body>
     <div class="register-container">
-        <h2>HOD Register</h2>
+        <h2>Register HOD</h2>
         <?php if (!empty($errors)): ?>
-            <div class="error">
+            <div class="message-container error-message">
                 <?php foreach ($errors as $error): ?>
                     <p><?php echo htmlspecialchars($error); ?></p>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
-        <form method="post" onsubmit="return validateForm();">
+        <?php if ($success): ?>
+            <div class="message-container success-message">
+                <p><?php echo htmlspecialchars($success); ?></p>
+            </div>
+        <?php endif; ?>
+        <form method="post" class="form-grid" enctype="multipart/form-data">
             <div class="form-group">
-                <label for="username">Username</label>
+                <label for="username">Username<span class="required-star">*</span></label>
                 <input type="text" id="username" name="username" required>
             </div>
             <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            <div class="form-group">
-                <label for="hod_name">HOD Name</label>
-                <input type="text" id="hod_name" name="hod_name" required>
-            </div>
-            <div class="form-group">
-                <label for="branch_id">Branch</label>
-                <select id="branch_id" name="branch_id" required>
-                    <option value="">Select Branch</option>
-                    <?php while ($branch = mysqli_fetch_assoc($branches_result)): ?>
-                        <option value="<?php echo $branch['branch_id']; ?>">
-                            <?php echo htmlspecialchars($branch['branch_name']); ?>
-                        </option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password">Password<span class="required-star">*</span></label>
                 <input type="password" id="password" name="password" required>
             </div>
             <div class="form-group">
-                <label for="confirm_password">Confirm Password</label>
-                <input type="password" id="confirm_password" name="confirm_password" required>
+                <label for="hod_name">HOD Name<span class="required-star">*</span></label>
+                <input type="text" id="hod_name" name="hod_name" required>
             </div>
-            <button type="submit">Register</button>
+            <div class="form-group">
+                <label for="email">Email<span class="required-star">*</span></label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group full-width">
+                <label for="branch_name">Branch Name<span class="required-star">*</span></label>
+                <select id="branch_name" name="branch_name" required>
+                    <option value="">Select a branch</option>
+                    <?php foreach ($existing_branches as $branch): ?>
+                        <option value="<?php echo htmlspecialchars($branch); ?>"><?php echo htmlspecialchars($branch); ?></option>
+                    <?php endforeach; ?>
+                    <option value="other">Other (Specify below)</option>
+                </select>
+            </div>
+            <div id="new_branch_group" class="form-group full-width hidden">
+                <label for="new_branch_name">New Branch Name<span class="required-star">*</span></label>
+                <input type="text" id="new_branch_name" name="new_branch_name" disabled>
+            </div>
+            <div class="form-group full-width">
+                <label for="college_name">College Name<span class="required-star">*</span></label>
+                <input type="text" id="college_name" name="college_name" required>
+            </div>
+            <div class="form-group full-width">
+                <label for="address">Address<span class="required-star">*</span></label>
+                <input type="text" id="address" name="address" required>
+            </div>
+            <div class="form-group full-width">
+                <label for="college_logo">College Logo<span class="required-star">*</span></label>
+                <input type="file" id="college_logo" name="college_logo" accept="image/*" required>
+            </div>
+            <div class="form-group full-width">
+                <button type="submit" name="register_hod" class="btn">Register</button>
+            </div>
         </form>
-        <div class="switch-auth">
-            <a href="login.php">Already have an account? Login</a>
-        </div>
-        <div class="switch-role">
-            <a href="../faculty/register.php">Register as Faculty</a>
+        <div class="login-link">
+            Already have an account? <a href="login.php">Log in here.</a>
         </div>
     </div>
+    <script>
+        document.getElementById('branch_name').addEventListener('change', function() {
+            var newBranchGroup = document.getElementById('new_branch_group');
+            var newBranchInput = document.getElementById('new_branch_name');
+            if (this.value === 'other') {
+                newBranchGroup.classList.remove('hidden');
+                newBranchInput.disabled = false;
+                newBranchInput.required = true;
+            } else {
+                newBranchGroup.classList.add('hidden');
+                newBranchInput.disabled = true;
+                newBranchInput.required = false;
+            }
+        });
+    </script>
 </body>
 </html>

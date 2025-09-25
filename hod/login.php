@@ -1,134 +1,125 @@
 <?php
+session_start();
 include '../include/db.php';
 
-// Check if already logged in
-if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'hod') {
-    header('Location: dashboard.php');
-    exit;
-}
+$error = '';
 
-// Handle login form submission
-$errors = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
     $username = mysqli_real_escape_string($conn, $_POST['username']);
     $password = mysqli_real_escape_string($conn, $_POST['password']);
 
-    if (empty($username) || empty($password)) {
-        $errors[] = 'Username and password are required';
+    $query = "SELECT user_id, role FROM users WHERE username = '$username' AND password = '$password'";
+    $result = mysqli_query($conn, $query);
+
+    if ($result && mysqli_num_rows($result) > 0) {
+        $user = mysqli_fetch_assoc($result);
+        $_SESSION['user_id'] = $user['user_id'];
+        $_SESSION['role'] = $user['role'];
+        // Redirect to HOD dashboard for now, regardless of role.
+        // You can add more logic here later to handle different roles.
+        header('Location: hod_dashboard.php');
+        exit;
     } else {
-        $query = "SELECT user_id, username, password, role FROM users WHERE username = '$username' AND role = 'hod'";
-        $result = mysqli_query($conn, $query);
-        if ($result && mysqli_num_rows($result) > 0) {
-            $user = mysqli_fetch_assoc($result);
-            if ($password === $user['password']) {
-                $_SESSION['user_id'] = $user['user_id'];
-                $_SESSION['role'] = $user['role'];
-                header('Location: dashboard.php');
-                exit;
-            } else {
-                $errors[] = 'Invalid username or password';
-            }
-        } else {
-            $errors[] = 'Invalid username or password';
-        }
+        $error = "Invalid username or password.";
     }
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HOD Login - Timetable Management System</title>
+    <title>Login - Timetable Management System</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
         }
         .login-container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            background-color: #fff;
+            padding: 2.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 400px;
         }
         h2 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #1f2937;
             text-align: center;
-            color: #333;
+            margin-bottom: 1.5rem;
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 1rem;
         }
-        label {
+        .form-group label {
             display: block;
-            margin-bottom: 5px;
-            color: #555;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4b5563;
+            margin-bottom: 0.5rem;
         }
-        input[type="text"], input[type="password"] {
+        .form-group input {
+            display: block;
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
             box-sizing: border-box;
         }
-        button {
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        .error-message {
+            color: #ef4444;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .btn {
             width: 100%;
-            padding: 10px;
-            background-color: #007bff;
-            color: white;
+            padding: 0.75rem;
+            background-color: #2563eb;
+            color: #fff;
             border: none;
-            border-radius: 4px;
+            border-radius: 0.5rem;
+            font-weight: 600;
             cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
         }
-        button:hover {
-            background-color: #0056b3;
+        .btn:hover {
+            background-color: #1d4ed8;
         }
-        .error {
-            color: red;
-            font-size: 14px;
+        .register-link {
             text-align: center;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: #4b5563;
         }
-        .switch-role {
-            text-align: center;
-            margin-top: 10px;
-        }
-        .switch-role a {
-            color: #007bff;
+        .register-link a {
+            color: #2563eb;
+            font-weight: 600;
             text-decoration: none;
         }
-        .switch-role a:hover {
+        .register-link a:hover {
             text-decoration: underline;
         }
     </style>
-    <script>
-        function validateForm() {
-            var username = document.getElementById('username').value;
-            var password = document.getElementById('password').value;
-            if (!username || !password) {
-                alert('Username and password are required');
-                return false;
-            }
-            return true;
-        }
-    </script>
 </head>
 <body>
     <div class="login-container">
         <h2>HOD Login</h2>
-        <?php if (!empty($errors)): ?>
-            <div class="error">
-                <?php foreach ($errors as $error): ?>
-                    <p><?php echo htmlspecialchars($error); ?></p>
-                <?php endforeach; ?>
-            </div>
+        <?php if ($error): ?>
+            <p class="error-message"><?php echo htmlspecialchars($error); ?></p>
         <?php endif; ?>
-        <form method="post" onsubmit="return validateForm();">
+        <form method="post">
             <div class="form-group">
                 <label for="username">Username</label>
                 <input type="text" id="username" name="username" required>
@@ -137,11 +128,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" required>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit" name="login" class="btn">Login</button>
         </form>
-        <div class="switch-role">
-            <a href="register.php">Don't have an account? Register</a> | 
-            <a href="../faculty/login.php">Login as Faculty</a>
+        <div class="register-link">
+            Don't have an account? <a href="register.php">Register here.</a>
         </div>
     </div>
 </body>

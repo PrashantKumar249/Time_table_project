@@ -1,6 +1,6 @@
 <?php
 // Start session for authentication
-session_start();
+// session_start();
 
 // Database configuration
 $host = 'localhost';
