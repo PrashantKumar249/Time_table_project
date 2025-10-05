@@ -369,7 +369,7 @@ body {
         </a>
 
         <!-- Faculty Management Card -->
-        <a href="#faculty_management" class="card-link">
+        <a href="faculty_management.php" class="card-link">
             <div class="card card-green">
                 <div class="card-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
@@ -383,7 +383,7 @@ body {
         </a>
 
         <!-- Leave Requests Card -->
-        <a href="#leave_requests" class="card-link">
+        <a href="leave_requests.php" class="card-link">
             <div class="card card-red">
                 <div class="card-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
@@ -396,7 +396,7 @@ body {
         </a>
         
         <!-- Faculty Attendance Card -->
-        <a href="#faculty_attendance" class="card-link">
+        <a href="faculty_attendance.php" class="card-link">
             <div class="card card-orange">
                 <div class="card-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">

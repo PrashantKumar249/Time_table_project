@@ -37,7 +37,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             padding: 0;
         }
         .header-container {
-            background-color: #821d07ff;
+            background-color: #0c3f66b7;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             padding: 1rem 2rem;
             display: flex;
@@ -58,10 +58,10 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
         .college-logo {
             width: 60px;
             height: 60px;
-            border-radius: 50%;
+        
             object-fit: cover;
             margin-right: 1rem;
-            border: 2px solid #821d07ff;
+            
             flex-shrink: 0;
         }
         .college-info {
@@ -78,10 +78,11 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            padding-left: 1 rem;
         }
         .college-address {
             font-size: 1rem;
-            color: #6b7280;
+            color: #1f2937;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
