@@ -329,6 +329,46 @@ body {
     text-align: center;
     border-radius: 0.5rem;
 }
+footer {
+    background-color: #1f2937;
+    color: #d1d6e0;
+    text-align: center;
+    padding: 2rem 0;
+    margin-top: 4rem;
+}
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+.footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.footer-links a {
+    color: #d1d6e0;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+.footer-links a:hover {
+    color: #fff;
+}
+.footer-bottom {
+    border-top: 1px solid #374151;
+    padding-top: 1rem;
+    font-size: 0.875rem;
+}
+@media (max-width: 768px) {
+    .footer-links {
+        gap: 1rem;
+    }
+    .footer-links a {
+        font-size: 0.875rem;
+    }
+}
 </style>
 <div class="dashboard-container">
     <div class="text-center-container">
@@ -408,139 +448,5 @@ body {
             </div>
         </a>
     </section>
-
-    <!-- Detailed Sections (Forms & Tables) -->
-    <section id="faculty_management" class="section-container">
-        <h3 class="section-title">Faculty Management</h3>
-        
-        <!-- Add Faculty Form -->
-        <div class="form-card">
-            <h4 class="form-title">Add New Faculty Account</h4>
-            <form method="post" class="form-grid">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required class="input-field">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required class="input-field">
-                </div>
-                <div class="form-group">
-                    <label for="faculty_name">Faculty Name</label>
-                    <input type="text" id="faculty_name" name="faculty_name" required class="input-field">
-                </div>
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" required class="input-field">
-                </div>
-                <div class="form-group full-width">
-                    <button type="submit" name="add_faculty" class="button button-primary">Add Faculty</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- All Faculty Names with Subjects -->
-        <div class="form-card">
-            <h4 class="form-title">All Faculty and Their Subjects</h4>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th class="table-header">Faculty Name</th>
-                        <th class="table-header">Email</th>
-                        <th class="table-header">Subjects Taught</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($faculty_subjects as $name => $data): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($name); ?></td>
-                            <td><?php echo htmlspecialchars($data['email']); ?></td>
-                            <td>
-                                <?php if (!empty($data['subjects'])): ?>
-                                    <?php echo htmlspecialchars(implode(', ', array_unique($data['subjects']))); ?>
-                                <?php else: ?>
-                                    N/A
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <!-- Timetable Management Section -->
-    <section id="timetable_management" class="section-container">
-        <h3 class="section-title">Timetable Management</h3>
-        
-        <div class="button-group">
-            <a href="timetable_view.php" class="button button-primary">View & Manage Timetables</a>
-        </div>
-        
-        <!-- Generate Timetable Form -->
-        <div class="form-card">
-            <h4 class="form-title">Generate New Timetable</h4>
-            <p class="form-subtitle">Select a section to automatically generate a timetable.</p>
-            <form method="post" action="generate_timetable.php">
-                <div class="form-group">
-                    <label for="section_id" class="label">Section (Year, Semester)</label>
-                    <select id="section_id" name="section_id" required class="input-field">
-                        <option value="">-- Select Section --</option>
-                        <?php foreach ($sections as $section): ?>
-                            <option value="<?php echo $section['section_id']; ?>">
-                                <?php echo htmlspecialchars($section['section_name'] . ' (Year ' . $section['year'] . ', Sem ' . $section['semester'] . ')'); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <button type="submit" name="generate_timetable" class="button button-primary">Generate Timetable</button>
-                </div>
-            </form>
-        </div>
-    </section>
-
-    <!-- Leave Requests Section -->
-    <section id="leave_requests" class="section-container">
-        <h3 class="section-title">Pending Leave Requests</h3>
-        
-        <?php if (empty($leave_requests)): ?>
-            <p class="no-requests-message">No pending leave requests.</p>
-        <?php else: ?>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th class="table-header">Faculty Name</th>
-                        <th class="table-header">Leave Date</th>
-                        <th class="table-header">Reason</th>
-                        <th class="table-header">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($leave_requests as $leave): ?>
-                        <tr>
-                            <td><?php echo htmlspecialchars($leave['faculty_name']); ?></td>
-                            <td><?php echo htmlspecialchars($leave['leave_date']); ?></td>
-                            <td><?php echo htmlspecialchars($leave['reason']); ?></td>
-                            <td>
-                                <form method="post" class="actions-form">
-                                    <input type="hidden" name="leave_id" value="<?php echo $leave['leave_id']; ?>">
-                                    <button type="submit" name="approve_leave" class="button button-approve">Approve</button>
-                                    <button type="submit" name="reject_leave" class="button button-reject">Reject</button>
-                                </form>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-    </section>
-
-    <!-- Faculty Attendance Section -->
-    <section id="faculty_attendance" class="section-container">
-        <h3 class="section-title">Faculty Attendance</h3>
-        <p class="no-requests-message">This section is for displaying and managing faculty attendance. The implementation for this will require additional logic and database tables for attendance records.</p>
-    </section>
-
 </div>
 <?php include 'footer.php'; ?>
