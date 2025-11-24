@@ -1,0 +1,557 @@
+<?php
+session_start();
+include '../include/db.php'; // Assuming config.php has $conn
+
+$faculty_id = $_SESSION['faculty_id'];
+
+// Handle leave request
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_leave'])) {
+    $leave_date = mysqli_real_escape_string($conn, $_POST['leave_date']);
+    $reason = mysqli_real_escape_string($conn, $_POST['reason']);
+    
+    if (empty($leave_date) || empty($reason)) {
+        $leave_error = 'Date and reason are required';
+    } else {
+        $query = "INSERT INTO faculty_leave (faculty_id, leave_date, reason) VALUES ($faculty_id, '$leave_date', '$reason')";
+        if (mysqli_query($conn, $query)) {
+            $leave_success = 'Leave request submitted successfully';
+        } else {
+            $leave_error = 'Error submitting leave: ' . mysqli_error($conn);
+        }
+    }
+}
+
+// Fetch faculty data
+$query = "SELECT f.faculty_name, f.email, b.branch_name
+          FROM faculty f
+          JOIN branches b ON f.branch_id = b.branch_id
+          WHERE f.faculty_id = $faculty_id";
+$result = mysqli_query($conn, $query);
+$faculty_data = mysqli_fetch_assoc($result);
+
+// Fetch assigned subjects
+$subjects_query = "SELECT s.subject_code, s.subject_name, s.weekly_hours
+                   FROM subjects s
+                   JOIN faculty_subjects fs ON s.subject_id = fs.subject_id
+                   WHERE fs.faculty_id = $faculty_id";
+$subjects_result = mysqli_query($conn, $subjects_query);
+$subjects = [];
+while ($row = mysqli_fetch_assoc($subjects_result)) {
+    $subjects[] = $row;
+}
+
+// Fetch leave status
+$leave_query = "SELECT leave_id, leave_date, reason, status, substitute_faculty_id, created_at
+                FROM faculty_leave
+                WHERE faculty_id = $faculty_id
+                ORDER BY created_at DESC";
+$leave_result = mysqli_query($conn, $leave_query);
+$leaves = [];
+while ($row = mysqli_fetch_assoc($leave_result)) {
+    $leaves[] = $row;
+}
+?>
+<?php include 'header.php'; ?>
+<div class="dashboard-container">
+    <!-- Header Section -->
+    <header class="dashboard-header">
+        <div class="header-content">
+            <h1 class="dashboard-welcome">Welcome back, <?php echo htmlspecialchars($faculty_data['faculty_name']); ?>!</h1>
+            <p class="dashboard-info">
+                <span class="info-item">Branch: <?php echo htmlspecialchars($faculty_data['branch_name']); ?></span>
+                <span class="info-separator">|</span>
+                <span class="info-item">Email: <?php echo htmlspecialchars($faculty_data['email']); ?></span>
+            </p>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard-main">
+        <!-- Assigned Subjects Card -->
+        <section class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">Assigned Subjects</h2>
+                <?php if (!empty($subjects)): ?>
+                    <span class="card-badge"><?php echo count($subjects); ?> Subjects</span>
+                <?php endif; ?>
+            </div>
+            <?php if (empty($subjects)): ?>
+                <div class="empty-state">
+                    <div class="empty-icon">📚</div>
+                    <p class="empty-text">No subjects assigned yet. Contact your HOD to assign subjects.</p>
+                </div>
+            <?php else: ?>
+                <div class="table-wrapper">
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Subject Code</th>
+                                <th>Subject Name</th>
+                                <th>Weekly Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($subjects as $index => $subject): ?>
+                                <tr class="<?php echo ($index % 2 == 0) ? 'table-row-alt' : ''; ?>">
+                                    <td class="table-cell-code"><?php echo htmlspecialchars($subject['subject_code']); ?></td>
+                                    <td><?php echo htmlspecialchars($subject['subject_name']); ?></td>
+                                    <td class="table-cell-hours"><?php echo $subject['weekly_hours']; ?> hrs</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </section>
+
+        <!-- Leave Request Card -->
+        <section class="dashboard-card full-width">
+            <div class="card-header">
+                <h2 class="card-title">Request Leave / Mark Absent</h2>
+            </div>
+            <?php if (isset($leave_error)): ?>
+                <div class="alert alert-error"><?php echo htmlspecialchars($leave_error); ?></div>
+            <?php endif; ?>
+            <?php if (isset($leave_success)): ?>
+                <div class="alert alert-success"><?php echo htmlspecialchars($leave_success); ?></div>
+            <?php endif; ?>
+            <form method="post" class="leave-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="leave_date">Select Date</label>
+                        <input type="date" id="leave_date" name="leave_date" required class="form-input">
+                        <small class="form-help">Choose the date for leave or absence</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="reason">Reason</label>
+                        <textarea id="reason" name="reason" rows="4" placeholder="Provide a brief reason for your leave or absence (e.g., medical emergency, personal matter)..." required class="form-input"></textarea>
+                        <small class="form-help">Be descriptive for better processing</small>
+                    </div>
+                </div>
+                <button type="submit" name="request_leave" class="btn-primary full-width">Submit Request</button>
+            </form>
+        </section>
+
+        <!-- Leave Status Card -->
+        <section class="dashboard-card">
+            <div class="card-header">
+                <h2 class="card-title">Leave Requests Status</h2>
+                <?php if (!empty($leaves)): ?>
+                    <span class="card-badge"><?php echo count($leaves); ?> Requests</span>
+                <?php endif; ?>
+            </div>
+            <?php if (empty($leaves)): ?>
+                <div class="empty-state">
+                    <div class="empty-icon">📅</div>
+                    <p class="empty-text">No leave requests submitted yet. Use the form above to request one.</p>
+                </div>
+            <?php else: ?>
+                <div class="table-wrapper">
+                    <table class="dashboard-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($leaves as $index => $leave): ?>
+                                <tr class="<?php echo ($index % 2 == 0) ? 'table-row-alt' : ''; ?>">
+                                    <td class="table-cell-date"><?php echo date('M d, Y', strtotime($leave['leave_date'])); ?></td>
+                                    <td><?php echo htmlspecialchars(substr($leave['reason'], 0, 40)) . (strlen($leave['reason']) > 40 ? '...' : ''); ?></td>
+                                    <td><span class="status-badge status-<?php echo $leave['status']; ?>"><?php echo ucfirst($leave['status']); ?></span></td>
+                                    <td class="table-cell-time"><?php echo date('M j, H:i', strtotime($leave['created_at'])); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </section>
+    </main>
+
+    
+</div>
+
+<style>
+    :root {
+        --primary-color: #3b82f6;
+        --secondary-color: #10b981;
+        --accent-color: #f59e0b;
+        --text-primary: #1e293b;
+        --text-secondary: #64748b;
+        --bg-primary: #f8fafc;
+        --bg-card: #ffffff;
+        --border-color: #e2e8f0;
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    .dashboard-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .dashboard-header {
+        background: var(--bg-card);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-md);
+        text-align: center;
+        border: 1px solid var(--border-color);
+    }
+
+    .dashboard-welcome {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0 0 0.5rem 0;
+        letter-spacing: -0.025em;
+    }
+
+    .dashboard-info {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .info-item {
+        display: inline;
+    }
+
+    .info-separator {
+        margin: 0 0.5rem;
+        color: var(--text-secondary);
+    }
+
+    .dashboard-main {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .dashboard-main {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    }
+
+    .dashboard-card {
+        background: var(--bg-card);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border-color);
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .dashboard-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-2px);
+    }
+
+    .full-width {
+        grid-column: 1 / -1;
+    }
+
+    .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .card-badge {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .empty-text {
+        font-size: 1rem;
+        margin: 0;
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+    }
+
+    .dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .dashboard-table th,
+    .dashboard-table td {
+        padding: 1rem 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .dashboard-table th {
+        background: #f8fafc;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+    }
+
+    .dashboard-table tr:hover {
+        background: #f8fafc;
+    }
+
+    .table-row-alt {
+        background: #fafbfc;
+    }
+
+    .table-cell-code {
+        font-family: 'Monaco', monospace;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+
+    .table-cell-hours {
+        font-weight: 500;
+        color: var(--secondary-color);
+    }
+
+    .table-cell-date {
+        font-weight: 500;
+    }
+
+    .table-cell-time {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .leave-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .form-group {
+        flex: 1;
+    }
+
+    .form-group.full-width {
+        flex: none;
+        width: 100%;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        font-family: inherit;
+    }
+
+    .form-input::placeholder {
+        color: #cbd5e1;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .form-help {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .btn-primary {
+        padding: 1rem;
+        background: linear-gradient(135deg, var(--primary-color), #2563eb);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+    }
+
+    .full-width {
+        width: 100%;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #a7f3d0;
+    }
+
+    .alert-error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+    }
+
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .status-approved {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .dashboard-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding: 1rem;
+        background: var(--bg-card);
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--border-color);
+    }
+
+    .btn-secondary {
+        background: #6b7280;
+        color: white;
+        border: none;
+        padding: 0.875rem 2rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .btn-secondary:hover {
+        background: #4b5563;
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 0.5rem;
+        }
+
+        .dashboard-main {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .form-row {
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .dashboard-header {
+            padding: 1.5rem;
+        }
+
+        .dashboard-welcome {
+            font-size: 1.5rem;
+        }
+
+        .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .table-cell {
+            padding: 0.75rem 0.5rem;
+        }
+    }
+</style>
+<?php include 'footer.php'; ?>

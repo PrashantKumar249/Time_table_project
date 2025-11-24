@@ -1,5 +1,4 @@
 <?php
-session_start();
 include '../include/db.php';
 
 // Default values
@@ -9,17 +8,22 @@ $college_name = "College Name";
 $college_address = "College Address";
 $college_logo = "https://placehold.co/100x100/A0AEC0/4A5563?text=U"; // Default placeholder
 
-if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
-    if ($_SESSION['role'] === 'hod') {
-        $query = "SELECT hod_name, college_name, address, college_logo FROM hod WHERE user_id = " . (int)$_SESSION['user_id'];
-        $result = mysqli_query($conn, $query);
-        if ($result && mysqli_num_rows($result) > 0) {
-            $user_data = mysqli_fetch_assoc($result);
-            $user_name = htmlspecialchars($user_data['hod_name']);
-            $college_name = htmlspecialchars($user_data['college_name']);
-            $college_address = htmlspecialchars($user_data['address']);
-            $college_logo = !empty($user_data['college_logo']) ? '../logo/' . htmlspecialchars($user_data['college_logo']) : $college_logo;
-        }
+if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'faculty') {
+    // Fetch faculty name from session or database
+    $user_name = htmlspecialchars($_SESSION['faculty_name'] ?? 'Faculty Member');
+    
+    // Fetch college details via HOD for the faculty's branch
+    $branch_id = (int)$_SESSION['branch_id'];
+    $query = "SELECT h.college_name, h.address, h.college_logo 
+              FROM hod h 
+              WHERE h.branch_id = $branch_id 
+              LIMIT 1";
+    $result = mysqli_query($conn, $query);
+    if ($result && mysqli_num_rows($result) > 0) {
+        $hod_data = mysqli_fetch_assoc($result);
+        $college_name = htmlspecialchars($hod_data['college_name']);
+        $college_address = htmlspecialchars($hod_data['address']);
+        $college_logo = !empty($hod_data['college_logo']) ? '../logo/' . htmlspecialchars($hod_data['college_logo']) : $college_logo;
     }
 }
 ?>
@@ -28,17 +32,17 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $user_name; ?> - HOD Panel</title>
+    <title><?php echo $user_name; ?> - Faculty Panel</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #821d07ff;
+            background-color: #f8f9fa;
             margin: 0;
             padding: 0;
         }
         .header-container {
-            background: linear-gradient(135deg, #8B0000 0%, #A52A2A 100%);
-            box-shadow: 0 4px 20px rgba(139, 0, 0, 0.3);
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            box-shadow: 0 4px 20px rgba(79, 70, 229, 0.3);
             padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
@@ -46,7 +50,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             position: sticky;
             top: 0;
             z-index: 1000;
-            border-bottom: 3px solid #D2691E;
+            border-bottom: 3px solid #a78bfa;
         }
         .header-left {
             display: flex;
@@ -62,7 +66,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             border-radius: 50%;
             object-fit: cover;
             margin-right: 1rem;
-            border: 3px solid #D2691E;
+            border: 3px solid #a78bfa;
             flex-shrink: 0;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
@@ -76,7 +80,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
         .college-name {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #FFF8DC;
+            color: #ffffff;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -85,7 +89,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
         }
         .college-address {
             font-size: 1rem;
-            color: #F5F5DC;
+            color: #e9d5ff;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -102,8 +106,8 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
         .profile-button {
             cursor: pointer;
             padding: 0.75rem 1.5rem;
-            background: linear-gradient(135deg, #FFF8DC 0%, #FAFAD2 100%);
-            border: 2px solid #D2691E;
+            background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
+            border: 2px solid #a78bfa;
             border-radius: 25px;
             display: flex;
             align-items: center;
@@ -114,14 +118,14 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
         .profile-button:hover {
-            background: linear-gradient(135deg, #FAFAD2 0%, #FFF8DC 100%);
+            background: linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%);
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         .profile-name {
             font-size: 1rem;
             font-weight: 600;
-            color: #8B0000;
+            color: #4f46e5;
             margin-right: 0.75rem;
             white-space: nowrap;
             overflow: hidden;
@@ -132,7 +136,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             height: 0;
             border-left: 6px solid transparent;
             border-right: 6px solid transparent;
-            border-top: 6px solid #8B0000;
+            border-top: 6px solid #4f46e5;
             margin-left: 0.5rem;
             transition: transform 0.3s ease-in-out;
         }
@@ -140,30 +144,30 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             position: absolute;
             top: calc(100% + 0.5rem);
             right: 0;
-            background: linear-gradient(135deg, #FFF8DC 0%, #FAFAD2 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 100%);
             border-radius: 0.75rem;
-            box-shadow: 0 8px 25px rgba(139, 0, 0, 0.2);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.2);
             min-width: 160px;
             overflow: hidden;
             z-index: 10;
             display: none;
-            border: 2px solid #D2691E;
+            border: 2px solid #a78bfa;
         }
         .profile-menu-item {
             display: block;
             padding: 1rem 1.25rem;
             font-size: 0.95rem;
-            color: #8B0000;
+            color: #4f46e5;
             text-decoration: none;
             transition: all 0.3s ease-in-out;
-            border-bottom: 1px solid #D2691E;
+            border-bottom: 1px solid #a78bfa;
         }
         .profile-menu-item:last-child {
             border-bottom: none;
         }
         .profile-menu-item:hover {
-            background-color: #D2691E;
-            color: #FFF8DC;
+            background-color: #a78bfa;
+            color: #ffffff;
             transform: translateX(5px);
         }
         
@@ -225,8 +229,8 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
                 <div class="profile-arrow"></div>
             </div>
             <div id="profile-menu" class="profile-menu">
-                <a href="hod_dashboard.php" class="profile-menu-item">Home</a>
-                <a href="hod_profile.php" class="profile-menu-item">HOD Profile</a>
+                <a href="faculty_dashboard.php" class="profile-menu-item">Home</a>
+                <a href="faculty_profile.php" class="profile-menu-item">Faculty Profile</a>
                 <a href="logout.php" class="profile-menu-item">Logout</a>
             </div>
         </div>

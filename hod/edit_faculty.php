@@ -17,38 +17,67 @@ if (!$result || mysqli_num_rows($result) == 0) {
 $hod_data = mysqli_fetch_assoc($result);
 $branch_id = $hod_data['branch_id'];
 
+// Get faculty_id from URL
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+    header('Location: faculty_management.php');
+    exit;
+}
+$faculty_id = (int)$_GET['id'];
+
+// Fetch existing faculty data
+$faculty_query = "SELECT f.faculty_id, u.user_id, f.faculty_name, f.email, u.username, u.password
+                  FROM faculty f
+                  JOIN users u ON f.user_id = u.user_id
+                  WHERE f.faculty_id = $faculty_id AND f.branch_id = $branch_id";
+$faculty_result = mysqli_query($conn, $faculty_query);
+if (!$faculty_result || mysqli_num_rows($faculty_result) == 0) {
+    header('Location: faculty_management.php');
+    exit;
+}
+$faculty_data = mysqli_fetch_assoc($faculty_result);
+
+// Fetch existing subjects for this faculty
+$subjects_query = "SELECT s.subject_code, s.subject_name, s.weekly_hours
+                   FROM subjects s
+                   JOIN faculty_subjects fs ON s.subject_id = fs.subject_id
+                   WHERE fs.faculty_id = $faculty_id";
+$subjects_result = mysqli_query($conn, $subjects_query);
+$existing_subjects = [];
+while ($row = mysqli_fetch_assoc($subjects_result)) {
+    $existing_subjects[] = $row;
+}
+
 // Handle form submissions
 $errors = [];
 $success = '';
 
-// Add Faculty
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_faculty'])) {
-    $username = mysqli_real_escape_string($conn, trim($_POST['username']));
-    $password = mysqli_real_escape_string($conn, trim($_POST['password']));
-    $faculty_name = $username; // Set faculty_name to username since field is removed
-    $email = mysqli_real_escape_string($conn, trim($_POST['email']));
+// Update Faculty
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_faculty'])) {
+    $username = mysqli_real_escape_string($conn, $_POST['username']);
+    $new_password = !empty($_POST['password']) ? mysqli_real_escape_string($conn, $_POST['password']) : $faculty_data['password'];
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
     
-    if (empty($username) || empty($password) || empty($email)) {
-        $errors[] = 'All basic fields are required';
+    if (empty($username) || empty($email)) {
+        $errors[] = 'Username and email are required';
     } else {
-        // Check if username or email exists
-        $check_query = "SELECT user_id FROM users WHERE username = '$username' OR email = '$email'";
+        // Check if username or email exists for other users
+        $check_query = "SELECT user_id FROM users WHERE (username = '$username' OR email = '$email') AND user_id != " . $faculty_data['user_id'];
         $check_result = mysqli_query($conn, $check_query);
         if (mysqli_num_rows($check_result) > 0) {
-            $errors[] = 'Username or email already exists';
+            $errors[] = 'Username or email already exists for another user';
         } else {
-            // Insert user
-            $query = "INSERT INTO users (username, password, role, email) VALUES ('$username', '$password', 'faculty', '$email')";
-            if (mysqli_query($conn, $query)) {
-                $user_id = mysqli_insert_id($conn);
-                
-                // Insert faculty
-                $query = "INSERT INTO faculty (user_id, branch_id, faculty_name, email, created_by, password) 
-                          VALUES ($user_id, $branch_id, '$faculty_name', '$email', " . (int)$_SESSION['user_id'] . ", '$password')";
-                if (mysqli_query($conn, $query)) {
-                    $faculty_id = mysqli_insert_id($conn);
+            // Update user
+            $password_update = !empty($_POST['password']) ? ", password = '$new_password'" : '';
+            $user_query = "UPDATE users SET username = '$username'$password_update WHERE user_id = " . $faculty_data['user_id'];
+            if (mysqli_query($conn, $user_query)) {
+                // Update faculty
+                $faculty_name = $username; // Set faculty_name to username
+                $faculty_update = "UPDATE faculty SET faculty_name = '$faculty_name', email = '$email' WHERE faculty_id = $faculty_id";
+                if (mysqli_query($conn, $faculty_update)) {
+                    // Handle subjects - first delete existing links
+                    mysqli_query($conn, "DELETE FROM faculty_subjects WHERE faculty_id = $faculty_id");
                     
-                    // Handle subjects
+                    // Add new subjects
                     $subjects_added = 0;
                     if (isset($_POST['subject_code']) && is_array($_POST['subject_code'])) {
                         foreach ($_POST['subject_code'] as $index => $subject_code) {
@@ -88,26 +117,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_faculty'])) {
                         }
                     }
                     
-                    if ($subjects_added > 0 || empty($_POST['subject_code'])) {
-                        $success = 'Faculty account created successfully' . ($subjects_added > 0 ? ' with ' . $subjects_added . ' subject(s)' : '');
-                    } else {
-                        $errors[] = 'No valid subjects provided';
-                    }
+                    $success = 'Faculty updated successfully' . ($subjects_added > 0 ? ' with ' . $subjects_added . ' subject(s)' : '');
                 } else {
-                    // Delete user if faculty insert fails
-                    mysqli_query($conn, "DELETE FROM users WHERE user_id = $user_id");
-                    $errors[] = 'Error adding faculty: ' . mysqli_error($conn);
+                    $errors[] = 'Error updating faculty: ' . mysqli_error($conn);
                 }
             } else {
-                $errors[] = 'Error creating user: ' . mysqli_error($conn);
+                $errors[] = 'Error updating user: ' . mysqli_error($conn);
             }
         }
     }
 }
 
-// Delete Faculty
+// Delete Faculty (if needed, but since it's edit, maybe not, but keep for consistency)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_faculty'])) {
-    $faculty_id = (int)$_POST['faculty_id'];
     $query = "SELECT user_id FROM faculty WHERE faculty_id = $faculty_id AND branch_id = $branch_id";
     $result = mysqli_query($conn, $query);
     if ($result && $row = mysqli_fetch_assoc($result)) {
@@ -118,37 +140,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_faculty'])) {
         if (mysqli_query($conn, "DELETE FROM faculty WHERE faculty_id = $faculty_id")) {
             // Delete from users
             mysqli_query($conn, "DELETE FROM users WHERE user_id = $user_id");
-            $success = 'Faculty deleted successfully';
+            header('Location: faculty_management.php');
+            exit;
         } else {
             $errors[] = 'Error deleting faculty: ' . mysqli_error($conn);
         }
     } else {
         $errors[] = 'Faculty not found or not in your branch';
-    }
-}
-
-// Fetch all faculty with subjects
-$query = "SELECT f.faculty_id, f.faculty_name, f.email, u.username, s.subject_name
-          FROM faculty f
-          JOIN users u ON f.user_id = u.user_id
-          LEFT JOIN faculty_subjects fs ON f.faculty_id = fs.faculty_id
-          LEFT JOIN subjects s ON fs.subject_id = s.subject_id
-          WHERE f.branch_id = $branch_id
-          ORDER BY f.faculty_name";
-$result = mysqli_query($conn, $query);
-$faculty_list = [];
-while ($row = mysqli_fetch_assoc($result)) {
-    $faculty_name = $row['faculty_name'];
-    if (!isset($faculty_list[$faculty_name])) {
-        $faculty_list[$faculty_name] = [
-            'faculty_id' => $row['faculty_id'],
-            'email' => $row['email'],
-            'username' => $row['username'],
-            'subjects' => []
-        ];
-    }
-    if ($row['subject_name']) {
-        $faculty_list[$faculty_name]['subjects'][] = $row['subject_name'];
     }
 }
 ?>
@@ -326,38 +324,6 @@ body {
 .button-danger:hover {
     background-color: #dc2626;
 }
-.table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    margin-top: 1rem;
-}
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-    background-color: #fff;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    min-width: 600px;
-}
-.data-table thead tr {
-    background-color: #f9fafb;
-}
-.data-table th, .data-table td {
-    padding: 1rem;
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-}
-.data-table th {
-    font-weight: 600;
-    color: #374151;
-    background-color: #f3f4f6;
-}
-.actions {
-    display: flex;
-    gap: 0.5rem;
-}
 @media (max-width: 768px) {
     .container {
         padding: 1rem;
@@ -365,29 +331,13 @@ body {
     .form-grid {
         grid-template-columns: 1fr;
     }
-    .data-table {
-        font-size: 0.75rem;
-        min-width: 500px;
-    }
-    .data-table th, .data-table td {
-        padding: 0.5rem;
-    }
     .subject-section {
         padding: 0.75rem;
-    }
-    .actions {
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-    .actions .button {
-        width: 100%;
-        padding: 0.375rem 0.75rem;
-        font-size: 0.75rem;
     }
 }
 </style>
 <script>
-let subjectCount = 2;
+let subjectCount = <?php echo count($existing_subjects) + 1; ?>;
 
 function addSubject() {
     const container = document.getElementById('subjects-container');
@@ -441,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 <div class="container">
-    <h1 class="title">Faculty Management</h1>
+    <h1 class="title">Edit Faculty: <?php echo htmlspecialchars($faculty_data['faculty_name'] ?? 'Unknown'); ?></h1>
 
     <?php if (!empty($errors)): ?>
         <div class="message-container error-message">
@@ -459,101 +409,85 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     <?php endif; ?>
 
-    <!-- Add Faculty Form -->
+    <!-- Edit Faculty Form -->
     <div class="form-card">
-        <h2 class="form-title">Add New Faculty</h2>
+        <h2 class="form-title">Edit Faculty Details</h2>
         <form method="post" class="form-grid">
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required class="input-field">
+                <label for="username">Username (will be used as Faculty Name)</label>
+                <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($faculty_data['username']); ?>" required class="input-field">
             </div>
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" required class="input-field">
+                <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($faculty_data['email']); ?>" required class="input-field">
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required class="input-field">
+                <label for="password">New Password (leave blank to keep current)</label>
+                <input type="password" id="password" name="password" class="input-field">
             </div>
+            
+            <!-- Existing Subjects -->
+            <?php if (!empty($existing_subjects)): ?>
+                <?php foreach ($existing_subjects as $index => $sub): ?>
+                    <div class="subject-section" id="subject-<?php echo $index; ?>">
+                        <h4>Subject <?php echo $index + 1; ?></h4>
+                        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <div class="form-group">
+                                <label>Subject Code</label>
+                                <input type="text" name="subject_code[]" value="<?php echo htmlspecialchars($sub['subject_code']); ?>" required class="input-field">
+                            </div>
+                            <div class="form-group">
+                                <label>Subject Name</label>
+                                <input type="text" name="subject_name[]" value="<?php echo htmlspecialchars($sub['subject_name']); ?>" required class="input-field">
+                            </div>
+                            <div class="form-group">
+                                <label>Weekly Hours</label>
+                                <input type="number" name="weekly_hours[]" min="1" max="10" value="<?php echo $sub['weekly_hours']; ?>" required class="input-field">
+                            </div>
+                            <div class="form-group" style="grid-column: span 3; margin-top: 1rem;">
+                                <button type="button" onclick="removeSubject('subject-<?php echo $index; ?>')" class="remove-subject">Remove Subject</button>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
             
             <!-- Subjects Section -->
             <div class="form-group" style="grid-column: span 2;">
                 <label>Subjects (One faculty can teach multiple subjects)</label>
                 <div id="subjects-container">
-                    <div class="subject-section" id="subject-1">
-                        <h4>Subject 1</h4>
-                        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                            <div class="form-group">
-                                <label>Subject Code</label>
-                                <input type="text" name="subject_code[]" required class="input-field">
-                            </div>
-                            <div class="form-group">
-                                <label>Subject Name</label>
-                                <input type="text" name="subject_name[]" required class="input-field">
-                            </div>
-                            <div class="form-group">
-                                <label>Weekly Hours</label>
-                                <input type="number" name="weekly_hours[]" min="1" max="10" required class="input-field">
+                    <?php if (empty($existing_subjects)): ?>
+                        <div class="subject-section" id="subject-0">
+                            <h4>Subject 1</h4>
+                            <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                                <div class="form-group">
+                                    <label>Subject Code</label>
+                                    <input type="text" name="subject_code[]" required class="input-field">
+                                </div>
+                                <div class="form-group">
+                                    <label>Subject Name</label>
+                                    <input type="text" name="subject_name[]" required class="input-field">
+                                </div>
+                                <div class="form-group">
+                                    <label>Weekly Hours</label>
+                                    <input type="number" name="weekly_hours[]" min="1" max="10" required class="input-field">
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
                 <button type="button" onclick="addSubject()" class="add-subject-btn" style="margin-top: 0.5rem;">Add Another Subject</button>
             </div>
             
             <div class="form-group" style="grid-column: span 2;">
-                <button type="submit" name="add_faculty" class="button button-primary">Add Faculty</button>
+                <button type="submit" name="update_faculty" class="button button-primary">Update Faculty</button>
+                <a href="faculty_management.php" class="button" style="background-color: #6b7280; margin-left: 1rem;">Cancel</a>
             </div>
         </form>
     </div>
 
-    <!-- Faculty List -->
-    <div class="form-card">
-        <h2 class="form-title">Faculty List</h2>
-        <?php if (empty($faculty_list)): ?>
-            <p style="text-align: center; color: #6b7280; padding: 2rem;">No faculty members found.</p>
-        <?php else: ?>
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Faculty Name</th>
-                            <th>Username</th>
-                            <th>Email</th>
-                            <th>Subjects Taught</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($faculty_list as $name => $data): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($name); ?></td>
-                                <td><?php echo htmlspecialchars($data['username']); ?></td>
-                                <td><?php echo htmlspecialchars($data['email']); ?></td>
-                                <td>
-                                    <?php if (!empty($data['subjects'])): ?>
-                                        <?php echo htmlspecialchars(implode(', ', array_unique($data['subjects']))); ?>
-                                    <?php else: ?>
-                                        N/A
-                                    <?php endif; ?>
-                                </td>
-                                <td class="actions">
-                                    <a href="edit_faculty.php?id=<?php echo $data['faculty_id']; ?>" class="button button-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Edit</a>
-                                    <form method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this faculty?');">
-                                        <input type="hidden" name="faculty_id" value="<?php echo $data['faculty_id']; ?>">
-                                        <button type="submit" name="delete_faculty" class="button button-danger" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Delete</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
-    </div>
-
     <div style="text-align: center; margin-top: 2rem;">
-        <a href="hod_dashboard.php" class="button button-primary">Back to Dashboard</a>
+        <a href="faculty_management.php" class="button button-primary">Back to Faculty Management</a>
     </div>
 </div>  
 <?php include 'footer.php'; ?>
