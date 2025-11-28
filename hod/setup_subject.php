@@ -1,5 +1,5 @@
 <?php
-// setup_subject.php (New File)
+// setup_subject.php (Updated: Year-focused allocation, All year subjects, Section add multiple A/B, Minimal styling)
 include '../include/db.php';
 include 'header.php';
 
@@ -10,268 +10,298 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'hod') {
 
 $user_id = $_SESSION['user_id'];
 
-// Fetch HOD's branch
+// Fetch HOD's branch with error handling
+$hod_branch_id = 1; // Default fallback
 $hod_branch_query = "SELECT b.branch_id FROM hod h JOIN branches b ON h.branch_id = b.branch_id WHERE h.user_id = $user_id";
 $hod_branch_result = mysqli_query($conn, $hod_branch_query);
-$hod_branch_id = mysqli_fetch_assoc($hod_branch_result)['branch_id'] ?? 1;
+if ($hod_branch_result && mysqli_num_rows($hod_branch_result) > 0) {
+    $hod_branch_row = mysqli_fetch_assoc($hod_branch_result);
+    if (isset($hod_branch_row['branch_id']) && $hod_branch_row['branch_id'] > 0) {
+        $hod_branch_id = $hod_branch_row['branch_id'];
+    }
+}
 
-// Handle Add Section (A/B/C/D via JS, but save on submit if needed)
+// Handle Add Section (Normal form submission)
+$success_section = '';
+$error_section = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_section'])) {
-    $year = intval($_POST['section_year']);
-    $semester = intval($_POST['section_semester']);
+    $year = intval($_POST['year']);
+    $frontend_sem = intval($_POST['semester']);
+    $db_sem = ($frontend_sem % 2 == 0) ? 2 : 1; // Assuming odd/even mapping
     $section_name = strtoupper(mysqli_real_escape_string($conn, trim($_POST['section_name'])));
-
-    if ($year >= 1 && $year <= 4 && $semester >= 1 && $semester <= 2 && !empty($section_name) && strlen($section_name) <= 1) {
-        $check_query = "SELECT section_id FROM sections WHERE branch_id = $hod_branch_id AND year = $year AND semester = $semester AND section_name = '$section_name'";
+    if ($year >= 1 && $year <= 4 && $frontend_sem >= 1 && $frontend_sem <= 8 && !empty($section_name) && strlen($section_name) <= 3) { // Allow A, B, etc. up to 3 chars
+        $check_query = "SELECT section_id FROM sections WHERE branch_id = $hod_branch_id AND year = $year AND semester = $db_sem AND section_name = '$section_name'";
         $check_result = mysqli_query($conn, $check_query);
         if (mysqli_num_rows($check_result) == 0) {
-            $query = "INSERT INTO sections (branch_id, year, semester, section_name) VALUES ($hod_branch_id, $year, $semester, '$section_name')";
+            $query = "INSERT INTO sections (branch_id, year, semester, section_name) VALUES ($hod_branch_id, $year, $db_sem, '$section_name')";
             if (mysqli_query($conn, $query)) {
-                $success_section = "Section '$section_name' added successfully!";
+                $new_section_id = mysqli_insert_id($conn);
+                $success_section = "Section '$section_name' added successfully for Year $year, Sem $frontend_sem! ID: $new_section_id";
             } else {
                 $error_section = "Error adding section: " . mysqli_error($conn);
             }
         } else {
-            $error_section = "Section already exists.";
+            $error_section = "Section '$section_name' already exists for this year/sem.";
         }
     } else {
-        $error_section = "Invalid input for section (e.g., A/B/C/D).";
+        $error_section = "Invalid input. Year (1-4), Sem (1-8), Section (e.g., A, B).";
     }
 }
 
-// Handle Allocate Subjects
+// Handle Subject Allocation to Section (Save selected subjects to section_subjects)
+$success_alloc = '';
+$error_alloc = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['allocate_subjects'])) {
-    $section_id = intval($_POST['selected_section_id']);
-    $subject_ids = isset($_POST['selected_subjects']) ? array_map('intval', $_POST['selected_subjects']) : [];
-
-    if ($section_id > 0 && !empty($subject_ids) && count($subject_ids) <= 6) {
-        // Verify section and subjects match branch/year/sem
-        $sec_query = "SELECT branch_id, year, semester FROM sections WHERE section_id = $section_id";
-        $sec_result = mysqli_query($conn, $sec_query);
-        if ($sec_row = mysqli_fetch_assoc($sec_result)) {
-            $branch_id = $sec_row['branch_id'];
-            $year = $sec_row['year'];
-            $semester = $sec_row['semester'];
-
-            // Delete old allocations
-            mysqli_query($conn, "DELETE FROM section_subjects WHERE section_id = $section_id");
-
-            // Insert new (validate subjects)
-            $inserts = [];
-            foreach ($subject_ids as $sub_id) {
-                $sub_query = "SELECT subject_id FROM subjects WHERE subject_id = $sub_id AND branch_id = $branch_id AND year = $year AND semester = $semester";
-                if (mysqli_num_rows(mysqli_query($conn, $sub_query)) > 0) {
-                    $inserts[] = "($section_id, $sub_id)";
-                }
-            }
-            if (!empty($inserts)) {
-                $query = "INSERT INTO section_subjects (section_id, subject_id) VALUES " . implode(',', $inserts);
+    $section_id = intval($_POST['section_id']);
+    $selected_subjects_input = $_POST['selected_subjects'] ?? '';
+    $selected_subjects = array_filter(explode(',', $selected_subjects_input));
+    if ($section_id > 0 && !empty($selected_subjects)) {
+        // Clear existing allocations for this section
+        $clear_query = "DELETE FROM section_subjects WHERE section_id = $section_id";
+        mysqli_query($conn, $clear_query);
+        
+        // Insert new allocations
+        $insert_count = 0;
+        foreach ($selected_subjects as $sub_id) {
+            $sub_id = intval(trim($sub_id));
+            if ($sub_id > 0) {
+                $query = "INSERT INTO section_subjects (section_id, subject_id) VALUES ($section_id, $sub_id)";
                 if (mysqli_query($conn, $query)) {
-                    $success_allocate = count($inserts) . " subjects allocated successfully!";
-                } else {
-                    $error_allocate = "Allocation error: " . mysqli_error($conn);
+                    $insert_count++;
                 }
-            } else {
-                $error_allocate = "No valid subjects to allocate.";
             }
+        }
+        if ($insert_count > 0) {
+            $success_alloc = "$insert_count subjects allocated to the selected section successfully!";
         } else {
-            $error_allocate = "Invalid section.";
+            $error_alloc = "No subjects were allocated.";
         }
     } else {
-        $error_allocate = "Select up to 6 subjects.";
+        $error_alloc = "Please select a section and at least one subject.";
     }
 }
 
-// Fetch Data
-$years = [1,2,3,4];
-$semesters = [1,2,3,4,5,6,7,8];
-
-// Subjects by year-sem (for HOD's branch)
-$subjects_query = "SELECT * FROM subjects WHERE branch_id = $hod_branch_id ORDER BY year, semester, subject_name";
-$subjects_result = mysqli_query($conn, $subjects_query);
-$subjects_by_key = [];
-while ($row = mysqli_fetch_assoc($subjects_result)) {
-    $key = $row['year'] . '-' . $row['semester'];
-    $subjects_by_key[$key][] = $row;
+// Fetch Years for Dropdown
+$years_query = "SELECT DISTINCT year FROM sections WHERE branch_id = $hod_branch_id ORDER BY year";
+$years_result = mysqli_query($conn, $years_query);
+$years_options = [];
+while ($row = mysqli_fetch_assoc($years_result)) {
+    $years_options[] = $row['year'];
 }
 
-// Sections for HOD's branch
-$sections_query = "SELECT * FROM sections WHERE branch_id = $hod_branch_id ORDER BY year, semester, section_name";
+// Fetch Semesters (1-8 for frontend)
+$sem_options = range(1, 8);
+
+// Fetch Sections Dynamically (filtered by year and sem via JS/AJAX, but initial load none)
+$sections_query = "SELECT section_id, section_name, year, semester FROM sections WHERE branch_id = $hod_branch_id ORDER BY year, semester, section_name";
 $sections_result = mysqli_query($conn, $sections_query);
-$sections = [];
-while ($row = mysqli_fetch_assoc($sections_result)) $sections[] = $row;
+$all_sections = [];
+while ($row = mysqli_fetch_assoc($sections_result)) {
+    $all_sections[] = $row;
+}
+
+// Fetch All Subjects for the Branch (Year-filtered via JS)
+$subjects_query = "SELECT subject_id, subject_code, subject_name, year, semester, weekly_hours FROM subjects WHERE branch_id = $hod_branch_id ORDER BY year, subject_name";
+$subjects_result = mysqli_query($conn, $subjects_query);
+$all_subjects = [];
+while ($row = mysqli_fetch_assoc($subjects_result)) {
+    $all_subjects[] = $row;
+}
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Subjects in Sections</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #f8fafc; margin: 0; padding: 0; }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
-        .section { background: white; margin-bottom: 2rem; padding: 2rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .section h2 { color: #1e293b; margin-bottom: 1.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; font-weight: 500; color: #475569; margin-bottom: 0.5rem; }
-        .form-group select, .form-group input { width: 100%; padding: 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1rem; }
-        .form-row { display: flex; gap: 1rem; flex-wrap: wrap; }
-        .form-row .form-group { flex: 1 1 200px; min-width: 150px; }
-        .btn { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
-        .btn:hover { background: #2563eb; }
-        .btn-success { background: #10b981; }
-        .btn-success:hover { background: #059669; }
-        .btn-add-section { background: #f59e0b; margin-left: 0.5rem; padding: 0.5rem 1rem; font-size: 0.875rem; }
-        .btn-add-section:hover { background: #d97706; }
-        .message { padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; }
-        .success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
-        .error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .subjects-list { margin-top: 1rem; max-height: 300px; overflow-y: auto; }
-        .subject-item { display: flex; align-items: center; padding: 0.5rem; border: 1px solid #e2e8f0; margin-bottom: 0.5rem; border-radius: 4px; }
-        .subject-checkbox { margin-right: 0.5rem; }
-        #subjectsContainer { display: none; margin-top: 1rem; }
-        @media (max-width: 768px) { .form-row { flex-direction: column; } }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Section: Add New Section (Optional, for A/B/C/D) -->
-        <div class="section">
-            <h2>Add New Section</h2>
-            <?php if (isset($success_section)) echo "<div class='message success'>$success_section</div>"; ?>
-            <?php if (isset($error_section)) echo "<div class='message error'>$error_section</div>"; ?>
-            <form method="post">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="section_year">Year</label>
-                        <select name="section_year" id="section_year" required>
-                            <option value="">Select</option>
-                            <?php foreach($years as $y) echo "<option value='$y'>$y</option>"; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="section_semester">Semester</label>
-                        <select name="section_semester" id="section_semester" required>
-                            <option value="">Select</option>
-                            <?php foreach($semesters as $s) echo "<option value='$s'>$s</option>"; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="section_name">Section Name (A/B/C/D)</label>
-                        <input type="text" name="section_name" id="section_name" placeholder="A" maxlength="1" required>
-                    </div>
-                </div>
-                <button type="submit" name="add_section" class="btn btn-success">Add Section</button>
-            </form>
+
+<style>
+    /* Minimal Styling */
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+    button { background: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #45a049; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .subjects-list { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; }
+    .subject-item { margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 4px; }
+    .add-section-btn { background: yellow; color: black; padding: 10px 15px; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: white; margin: 15% auto; padding: 20px; border-radius: 8px; width: 80%; max-width: 400px; }
+    .error { color: red; }
+    .success { color: green; }
+</style>
+
+<div class="container">
+    <h1>Setup Subjects & Sections</h1>
+
+    <?php if ($success_section): ?>
+        <p class="success"><?php echo htmlspecialchars($success_section); ?></p>
+    <?php endif; ?>
+    <?php if ($error_section): ?>
+        <p class="error"><?php echo htmlspecialchars($error_section); ?></p>
+    <?php endif; ?>
+
+    <?php if ($success_alloc): ?>
+        <p class="success"><?php echo htmlspecialchars($success_alloc); ?></p>
+    <?php endif; ?>
+    <?php if ($error_alloc): ?>
+        <p class="error"><?php echo htmlspecialchars($error_alloc); ?></p>
+    <?php endif; ?>
+
+    <!-- Section Addition -->
+    <h2>Add Sections (e.g., A, B for Year/Sem)</h2>
+    <form method="POST">
+        <input type="hidden" name="add_section" value="1">
+        <div class="form-group">
+            <label for="year">Year:</label>
+            <input type="number" id="year" name="year" min="1" max="4" required placeholder="1">
         </div>
-
-        <!-- Main Setup Form -->
-        <div class="section">
-            <h2>Setup Subjects in Section</h2>
-            <?php if (isset($success_allocate)) echo "<div class='message success'>$success_allocate</div>"; ?>
-            <?php if (isset($error_allocate)) echo "<div class='message error'>$error_allocate</div>"; ?>
-            <form method="post" id="setupForm">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="year">Year</label>
-                        <select id="year" name="year" required onchange="loadSubjectsAndSections()">
-                            <option value="">Select</option>
-                            <?php foreach($years as $y) echo "<option value='$y'>$y</option>"; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="semester">Semester</label>
-                        <select id="semester" name="semester" required onchange="loadSubjectsAndSections()">
-                            <option value="">Select</option>
-                            <?php foreach($semesters as $s) echo "<option value='$s'>$s</option>"; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="section">Section</label>
-                        <select id="section" name="selected_section_id" required>
-                            <option value="">Select Section</option>
-                            <option value="A">A</option>
-                            <button type="button" onclick="addSection('B')" class="btn-add-section">Add B</button>
-                            <button type="button" onclick="addSection('C')" class="btn-add-section">Add C</button>
-                            <button type="button" onclick="addSection('D')" class="btn-add-section">Add D</button>
-                        </select>
-                    </div>
-                </div>
-                <div id="subjectsContainer">
-                    <label>Select Subjects (Tick up to 6)</label>
-                    <div id="subjectsList" class="subjects-list"></div>
-                    <button type="submit" name="allocate_subjects" class="btn" style="margin-top:1rem;">Setup / Save</button>
-                </div>
-            </form>
+        <div class="form-group">
+            <label for="semester">Semester (1-8):</label>
+            <select id="semester" name="semester" required>
+                <option value="">Select Semester</option>
+                <?php foreach ($sem_options as $sem): ?>
+                    <option value="<?php echo $sem; ?>"><?php echo $sem; ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
-    </div>
-    <script>
-        const subjectsData = <?php echo json_encode($subjects_by_key); ?>;
-        const sectionsData = <?php echo json_encode($sections); ?>;
+        <div class="form-group">
+            <label for="section_name">Section Name (e.g., A, B):</label>
+            <input type="text" id="section_name" name="section_name" maxlength="3" required placeholder="A">
+        </div>
+        <button type="submit" class="add-section-btn">Add Section</button>
+    </form>
 
-        function loadSubjectsAndSections() {
-            const year = document.getElementById('year').value;
-            const sem = document.getElementById('semester').value;
-            if (year && sem) {
-                // Load Sections (filter existing + add new via buttons)
-                const sectionSelect = document.getElementById('section');
-                const key = year + '-' + sem;
-                const filteredSections = sectionsData.filter(s => s.year == year && s.semester == sem);
-                sectionSelect.innerHTML = '<option value="">Select Section</option>';
-                filteredSections.forEach(s => {
-                    const opt = document.createElement('option');
-                    opt.value = s.section_id;
-                    opt.text = s.section_name;
-                    sectionSelect.appendChild(opt);
-                });
-                // Default A if not exists
-                if (filteredSections.length === 0) {
-                    const optA = document.createElement('option');
-                    optA.value = 'A';
-                    optA.text = 'A';
-                    optA.selected = true;
-                    sectionSelect.appendChild(optA);
-                }
-                loadSubjects();
-            }
-        }
+    <!-- Subject Allocation -->
+    <h2>Allocate Subjects to Section</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label for="alloc_year">Year (Main Filter):</label>
+            <select id="alloc_year" name="year" required onchange="filterSectionsAndSubjects()">
+                <option value="">Select Year</option>
+                <?php foreach ($years_options as $yr): ?>
+                    <option value="<?php echo $yr; ?>"><?php echo $yr; ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="alloc_sem">Semester (For Storage):</label>
+            <select id="alloc_sem" name="semester" required onchange="filterSectionsAndSubjects()">
+                <option value="">Select Semester</option>
+                <?php foreach ($sem_options as $sem): ?>
+                    <option value="<?php echo $sem; ?>"><?php echo $sem; ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="section_id">Section:</label>
+            <select id="section_id" name="section_id" required disabled onchange="toggleSaveButton()">
+                <option value="">Select Year/Sem First</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Subjects for Year (All Semesters):</label>
+            <div id="subjects-container" class="subjects-list">
+                <p>Select Year First to Load Subjects</p>
+            </div>
+            <input type="hidden" id="selected_subjects" name="selected_subjects" value="">
+        </div>
+        <button type="submit" name="allocate_subjects" id="saveBtn" disabled>Save Allocation</button>
+    </form>
+</div>
 
-        function addSection(secName) {
-            const sectionSelect = document.getElementById('section');
-            let opt = Array.from(sectionSelect.options).find(o => o.value === secName);
-            if (!opt) {
-                opt = document.createElement('option');
-                opt.value = secName;
-                opt.text = secName;
-                sectionSelect.appendChild(opt);
-            }
-            sectionSelect.value = secName;
-            loadSubjects(); // Reload subjects for new section (if needed, save section first)
-        }
+<script>
+let allSections = <?php echo json_encode($all_sections); ?>;
+let allSubjects = <?php echo json_encode($all_subjects); ?>;
+let selectedSubjects = [];
 
-        function loadSubjects() {
-            const year = document.getElementById('year').value;
-            const sem = document.getElementById('semester').value;
-            const section = document.getElementById('section').value;
-            const container = document.getElementById('subjectsContainer');
-            if (year && sem && section) {
-                container.style.display = 'block';
-                const key = year + '-' + sem;
-                const subjects = subjectsData[key] || [];
-                let html = '';
-                subjects.slice(0, 10).forEach(sub => {
-                    html += `<div class="subject-item">
-                        <input type="checkbox" name="selected_subjects[]" value="${sub.subject_id}" class="subject-checkbox">
-                        ${sub.subject_code} - ${sub.subject_name} (${sub.weekly_hours} hrs)
-                    </div>`;
-                });
-                document.getElementById('subjectsList').innerHTML = html;
-            } else {
-                container.style.display = 'none';
-            }
+function filterSectionsAndSubjects() {
+    const year = document.getElementById('alloc_year').value;
+    const sem = document.getElementById('alloc_sem').value;
+    const sectionSelect = document.getElementById('section_id');
+    const subjectsContainer = document.getElementById('subjects-container');
+
+    if (!year || !sem) {
+        sectionSelect.innerHTML = '<option value="">Select Year and Sem First</option>';
+        sectionSelect.disabled = true;
+        subjectsContainer.innerHTML = '<p>Select Year and Sem First to Load Subjects</p>';
+        selectedSubjects = [];
+        updateHiddenInput();
+        toggleSaveButton();
+        return;
+    }
+
+    // Compute db_sem from frontend sem
+    const frontendSem = parseInt(sem);
+    const dbSem = (frontendSem % 2 === 0) ? 2 : 1;
+
+    // Filter sections by year and db_sem
+    const filteredSections = allSections.filter(s => parseInt(s.year) === parseInt(year) && parseInt(s.semester) === dbSem);
+    sectionSelect.innerHTML = '<option value="">Select Section</option>';
+    if (filteredSections.length === 0) {
+        sectionSelect.innerHTML += '<option value="" disabled>No sections found</option>';
+    } else {
+        filteredSections.forEach(sec => {
+            const option = document.createElement('option');
+            option.value = sec.section_id;
+            option.textContent = `${sec.section_name} (Year ${sec.year}, Sem ${sec.semester})`;
+            sectionSelect.appendChild(option);
+        });
+    }
+    sectionSelect.disabled = filteredSections.length === 0;
+
+    // Filter subjects by year only (all sem for that year)
+    const filteredSubjects = allSubjects.filter(sub => parseInt(sub.year) === parseInt(year));
+    subjectsContainer.innerHTML = '';
+    if (filteredSubjects.length === 0) {
+        subjectsContainer.innerHTML = '<p>No subjects for this year.</p>';
+    } else {
+        filteredSubjects.forEach(sub => {
+            const div = document.createElement('div');
+            div.className = 'subject-item';
+            div.innerHTML = `
+                <input type="checkbox" value="${sub.subject_id}" onchange="handleCheckboxChange(this)">
+                <label>${sub.subject_code} - ${sub.subject_name} (Sem ${sub.semester}, ${sub.weekly_hours} hrs)</label>
+            `;
+            subjectsContainer.appendChild(div);
+        });
+    }
+    selectedSubjects = [];
+    updateHiddenInput();
+    toggleSaveButton();
+}
+
+function handleCheckboxChange(checkbox) {
+    const id = parseInt(checkbox.value);
+    if (checkbox.checked) {
+        if (selectedSubjects.length < 10) { // Limit to 10 subjects max
+            if (!selectedSubjects.includes(id)) selectedSubjects.push(id);
+        } else {
+            checkbox.checked = false;
+            alert('Maximum 10 subjects allowed!');
+            return;
         }
-    </script>
+    } else {
+        selectedSubjects = selectedSubjects.filter(s => s !== id);
+    }
+    updateHiddenInput();
+    toggleSaveButton();
+}
+
+function updateHiddenInput() {
+    document.getElementById('selected_subjects').value = selectedSubjects.join(',');
+}
+
+function toggleSaveButton() {
+    const yearSelected = document.getElementById('alloc_year').value;
+    const semSelected = document.getElementById('alloc_sem').value;
+    const sectionSelected = document.getElementById('section_id').value;
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = !yearSelected || !semSelected || !sectionSelected || selectedSubjects.length === 0;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    toggleSaveButton();
+});
+</script>
+
+<?php include 'footer.php'; ?>
 </body>
 </html>
