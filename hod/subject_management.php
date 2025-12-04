@@ -44,8 +44,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_subject'])) {
         $error_subject = "Invalid input. All fields required. Type must be T or P.";
     }
 }
+// Pagination and Search
+$limit = 5;
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $limit;
+$search = isset($_GET['search']) ? mysqli_real_escape_string($conn, trim($_GET['search'])) : '';
+// Base query for subjects
+$subjects_query = "SELECT subject_id, subject_code, type, subject_name, weekly_hours, year, semester FROM subjects WHERE branch_id = $hod_branch_id";
+if (!empty($search)) {
+    $subjects_query .= " AND (subject_name LIKE '%$search%' OR subject_code LIKE '%$search%')";
+}
+$subjects_query .= " ORDER BY year, semester, subject_name LIMIT $limit OFFSET $offset";
+// Count query for pagination
+$count_query = "SELECT COUNT(*) as total FROM subjects WHERE branch_id = $hod_branch_id";
+if (!empty($search)) {
+    $count_query .= " AND (subject_name LIKE '%$search%' OR subject_code LIKE '%$search%')";
+}
+$count_result = mysqli_query($conn, $count_query);
+$total_records = mysqli_fetch_assoc($count_result)['total'];
+$total_pages = ceil($total_records / $limit);
 // Fetch Subjects for List
-$subjects_query = "SELECT subject_id, subject_code, type, subject_name, weekly_hours, year, semester FROM subjects WHERE branch_id = $hod_branch_id ORDER BY year, semester, subject_name";
 $subjects_result = mysqli_query($conn, $subjects_query);
 $subjects = [];
 while ($row = mysqli_fetch_assoc($subjects_result)) {
@@ -63,7 +81,7 @@ $semesters = [1,2,3,4,5,6,7,8];
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Existing styles + new for right-side link */
+        /* Existing styles + new for right-side link and edit button */
         * { box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #f8fafc; margin: 0; padding: 0; }
         .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; position: relative; }
@@ -90,7 +108,36 @@ $semesters = [1,2,3,4,5,6,7,8];
         .setup-link:hover i { transform: rotate(10deg); }
         .setup-tooltip { position: absolute; top: -40px; right: 0; background: #1f2937; color: white; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.875rem; opacity: 0; visibility: hidden; transition: all 0.3s ease; white-space: nowrap; z-index: 20; }
         .setup-link:hover .setup-tooltip { opacity: 1; visibility: visible; top: -35px; }
-        @media (max-width: 768px) { .setup-link-container { position: static; margin: 1rem auto; text-align: center; } .setup-tooltip { display: none; } }
+        /* Edit Button Style */
+        .btn-edit { display: inline-flex; align-items: center; background: #f59e0b; color: white; padding: 0.5rem 0.75rem; border-radius: 4px; text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: background 0.2s; }
+        .btn-edit:hover { background: #d97706; }
+        .btn-edit i { margin-right: 0.25rem; }
+        /* Pagination Styles */
+        .pagination { margin-top: 1rem; text-align: center; }
+        .pagination a, .pagination span { display: inline-block; margin: 0 2px; padding: 0.5rem 0.75rem; text-decoration: none; border-radius: 4px; font-weight: 500; transition: background 0.2s; }
+        .pagination a { color: #374151; background: #e5e7eb; }
+        .pagination a:hover { background: #d1d5db; }
+        .pagination .current { background: #3b82f6; color: white; }
+        .pagination .prev, .pagination .next { padding: 0.5rem 1rem; background: #3b82f6; color: white; margin: 0 5px; }
+        .pagination .prev:hover, .pagination .next:hover { background: #2563eb; }
+        /* Search Form Styling */
+        .search-container { display: flex; gap: 0.5rem; align-items: end; flex-wrap: wrap; }
+        .search-container input { flex: 1; min-width: 200px; margin-bottom: 0; }
+        .search-container .btn { margin: 0; padding: 0.75rem 1rem; white-space: nowrap; }
+        .search-container .btn-clear { background: #6b7280; }
+        .search-container .btn-clear:hover { background: #4b5563; }
+        .search-container label { margin-bottom: 0.5rem; order: -1; width: 100%; }
+        @media (max-width: 768px) { 
+            .setup-link-container { position: static; margin: 1rem auto; text-align: center; } 
+            .setup-tooltip { display: none; }
+            .pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
+            .pagination a, .pagination span { padding: 0.4rem 0.6rem; font-size: 0.875rem; margin: 0; flex: 0 0 auto; min-width: 2.5rem; text-align: center; }
+            .pagination .prev, .pagination .next { padding: 0.4rem 0.8rem; min-width: auto; margin: 0; }
+            .pagination .prev, .pagination .next { font-size: 0.875rem; }
+            .search-container { flex-direction: column; align-items: stretch; }
+            .search-container input { min-width: auto; }
+            .search-container .btn { width: 100%; margin-top: 0.5rem; }
+        }
     </style>
 </head>
 <body>
@@ -107,6 +154,9 @@ $semesters = [1,2,3,4,5,6,7,8];
             <h2>Add Subject in Year</h2>
             <?php if (isset($success_subject)) echo "<div class='message success'>$success_subject</div>"; ?>
             <?php if (isset($error_subject)) echo "<div class='message error'>$error_subject</div>"; ?>
+            <?php if (isset($_GET['success'])): ?>
+                <script>alert('Subject updated successfully!');</script>
+            <?php endif; ?>
             <form method="post">
                 <div class="form-row">
                     <div class="form-group">
@@ -147,6 +197,18 @@ $semesters = [1,2,3,4,5,6,7,8];
                 <button type="submit" name="add_subject" class="btn">Add Subject</button>
             </form>
             <h3>Subjects List</h3>
+            <form method="get" style="margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label for="search">Search Subjects</label>
+                    <div class="search-container">
+                        <input type="text" name="search" id="search" placeholder="Search by name or code..." value="<?php echo htmlspecialchars($search); ?>">
+                        <button type="submit" class="btn"><i class="fas fa-search"></i> Search</button>
+                        <?php if (!empty($search)): ?>
+                            <a href="?" class="btn btn-clear"><i class="fas fa-times"></i> Clear</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </form>
             <table class="subjects-table">
                 <thead>
                     <tr>
@@ -156,6 +218,7 @@ $semesters = [1,2,3,4,5,6,7,8];
                         <th>Semester</th>
                         <th>Type</th>
                         <th>Weekly Hours</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -167,13 +230,35 @@ $semesters = [1,2,3,4,5,6,7,8];
                             <td><?php echo $sub['semester']; ?></td>
                             <td><?php echo strtoupper($sub['type']); ?></td>
                             <td><?php echo $sub['weekly_hours']; ?></td>
+                            <td>
+                                <a href="edit_subject.php?subject_id=<?php echo $sub['subject_id']; ?>" class="btn-edit" title="Edit Subject">
+                                    <i class="fas fa-edit"></i> Edit
+                                </a>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($subjects)): ?>
-                        <tr><td colspan="6">No subjects added yet.</td></tr>
+                        <tr><td colspan="7">No subjects found<?php echo !empty($search) ? ' matching your search.' : ' added yet.'; ?></td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
+            <?php if ($total_pages > 1): ?>
+                <div class="pagination">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?php echo $page - 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>" class="prev">Previous</a>
+                    <?php endif; ?>
+                    <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                        <?php if ($i == $page): ?>
+                            <span class="current"><?php echo $i; ?></span>
+                        <?php else: ?>
+                            <a href="?page=<?php echo $i; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>"><?php echo $i; ?></a>
+                        <?php endif; ?>
+                    <?php endfor; ?>
+                    <?php if ($page < $total_pages): ?>
+                        <a href="?page=<?php echo $page + 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>" class="next">Next</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     <script>

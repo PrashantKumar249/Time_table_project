@@ -26,17 +26,16 @@ $success_section = '';
 $error_section = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_section'])) {
     $year = intval($_POST['year']);
-    $frontend_sem = intval($_POST['semester']);
-    $db_sem = ($frontend_sem % 2 == 0) ? 2 : 1; // Assuming odd/even mapping
+    $semester = intval($_POST['semester']);
     $section_name = strtoupper(mysqli_real_escape_string($conn, trim($_POST['section_name'])));
-    if ($year >= 1 && $year <= 4 && $frontend_sem >= 1 && $frontend_sem <= 8 && !empty($section_name) && strlen($section_name) <= 3) { // Allow A, B, etc. up to 3 chars
-        $check_query = "SELECT section_id FROM sections WHERE branch_id = $hod_branch_id AND year = $year AND semester = $db_sem AND section_name = '$section_name'";
+    if ($year >= 1 && $year <= 4 && $semester >= 1 && $semester <= 8 && !empty($section_name) && strlen($section_name) <= 3) { // Allow A, B, etc. up to 3 chars
+        $check_query = "SELECT section_id FROM sections WHERE branch_id = $hod_branch_id AND year = $year AND semester = $semester AND section_name = '$section_name'";
         $check_result = mysqli_query($conn, $check_query);
         if (mysqli_num_rows($check_result) == 0) {
-            $query = "INSERT INTO sections (branch_id, year, semester, section_name) VALUES ($hod_branch_id, $year, $db_sem, '$section_name')";
+            $query = "INSERT INTO sections (branch_id, year, semester, section_name) VALUES ($hod_branch_id, $year, $semester, '$section_name')";
             if (mysqli_query($conn, $query)) {
                 $new_section_id = mysqli_insert_id($conn);
-                $success_section = "Section '$section_name' added successfully for Year $year, Sem $frontend_sem! ID: $new_section_id";
+                $success_section = "Section '$section_name' added successfully for Year $year, Sem $semester! ID: $new_section_id";
             } else {
                 $error_section = "Error adding section: " . mysqli_error($conn);
             }
@@ -228,12 +227,8 @@ function filterSectionsAndSubjects() {
         return;
     }
 
-    // Compute db_sem from frontend sem
-    const frontendSem = parseInt(sem);
-    const dbSem = (frontendSem % 2 === 0) ? 2 : 1;
-
-    // Filter sections by year and db_sem
-    const filteredSections = allSections.filter(s => parseInt(s.year) === parseInt(year) && parseInt(s.semester) === dbSem);
+    // Filter sections by year and semester directly
+    const filteredSections = allSections.filter(s => parseInt(s.year) === parseInt(year) && parseInt(s.semester) === parseInt(sem));
     sectionSelect.innerHTML = '<option value="">Select Section</option>';
     if (filteredSections.length === 0) {
         sectionSelect.innerHTML += '<option value="" disabled>No sections found</option>';
@@ -247,18 +242,18 @@ function filterSectionsAndSubjects() {
     }
     sectionSelect.disabled = filteredSections.length === 0;
 
-    // Filter subjects by year only (all sem for that year)
-    const filteredSubjects = allSubjects.filter(sub => parseInt(sub.year) === parseInt(year));
+    // Filter subjects by year and semester
+    const filteredSubjects = allSubjects.filter(sub => parseInt(sub.year) === parseInt(year) && parseInt(sub.semester) === parseInt(sem));
     subjectsContainer.innerHTML = '';
     if (filteredSubjects.length === 0) {
-        subjectsContainer.innerHTML = '<p>No subjects for this year.</p>';
+        subjectsContainer.innerHTML = '<p>No subjects for this year/semester.</p>';
     } else {
         filteredSubjects.forEach(sub => {
             const div = document.createElement('div');
             div.className = 'subject-item';
             div.innerHTML = `
                 <input type="checkbox" value="${sub.subject_id}" onchange="handleCheckboxChange(this)">
-                <label>${sub.subject_code} - ${sub.subject_name} (Sem ${sub.semester}, ${sub.weekly_hours} hrs)</label>
+                <label>${sub.subject_code} - ${sub.subject_name} (${sub.weekly_hours} hrs)</label>
             `;
             subjectsContainer.appendChild(div);
         });
