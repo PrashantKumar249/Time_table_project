@@ -9,8 +9,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'hod') {
     exit;
 }
 
-// Get HOD's branch_id
-$query = "SELECT h.branch_id, h.hod_name, b.branch_name FROM hod h JOIN branches b ON h.branch_id = b.branch_id WHERE h.user_id = " . (int)$_SESSION['user_id'];
+$query = "SELECT h.branch_id, h.hod_name, h.college_name, h.address, h.college_logo, b.branch_name FROM hod h JOIN branches b ON h.branch_id = b.branch_id WHERE h.user_id = " . (int)$_SESSION['user_id'];
 $result = mysqli_query($conn, $query);
 if (!$result || mysqli_num_rows($result) == 0) {
     header('Location: login.php');
@@ -122,6 +121,27 @@ foreach ($load_data as $row) {
     }
     $grouped_data[$current_faculty]['rows'][] = $row;
     $grouped_data[$current_faculty]['rowspan']++;
+}
+// Build summary per faculty: total L, total P, total load, years and sections
+$summary_query = "
+    SELECT f.faculty_id, f.faculty_name, 'Asst. Prof.' AS desig,
+        COALESCE(SUM(fld.l_hours),0) AS total_l,
+        COALESCE(SUM(fld.p_hours),0) AS total_p,
+        COALESCE(SUM(fld.total_load),0) AS total_load,
+        GROUP_CONCAT(DISTINCT fld.year ORDER BY fld.year SEPARATOR ', ') AS years,
+        GROUP_CONCAT(DISTINCT fld.section ORDER BY fld.section SEPARATOR ', ') AS sections
+    FROM faculty f
+    LEFT JOIN faculty_load_details fld ON f.faculty_id = fld.faculty_id
+    WHERE f.branch_id = $branch_id
+    GROUP BY f.faculty_id
+    ORDER BY f.faculty_name
+";
+$summary_res = mysqli_query($conn, $summary_query);
+$faculty_summary = [];
+if ($summary_res) {
+    while ($r = mysqli_fetch_assoc($summary_res)) {
+        $faculty_summary[] = $r;
+    }
 }
 ?>
 <style>
@@ -286,7 +306,7 @@ footer {
 <div class="dashboard-container">
     <div class="text-center-container">
         <h2 class="title">Teaching Load</h2>
-        <p class="subtitle">SESSION 2025-26 ODD SEM - <?php echo htmlspecialchars($hod_data['branch_name']); ?></p>
+        <p class="subtitle"><?php echo htmlspecialchars($hod_data['branch_name']); ?></p>
     </div>
 
     <section class="section-container">
@@ -294,6 +314,39 @@ footer {
             <a href="?export=excel" class="export-btn">Export to Excel</a>
             <button onclick="window.print()" class="print-btn">Print/PDF</button>
         </div>
+            <h3 class="section-title">FACULTY LOAD SUMMARY</h3>
+            <?php if (empty($faculty_summary)): ?>
+                <div class="no-data-message">No faculty load summary available.</div>
+            <?php else: ?>
+                <table class="load-table" style="min-width:800px;margin-bottom:1.25rem">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Desig.</th>
+                            <th>Total L</th>
+                            <th>Total P</th>
+                            <th>Total Load</th>
+                            <th>Years</th>
+                            <th>Sections</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php $idx = 1; foreach ($faculty_summary as $fs): ?>
+                            <tr>
+                                <td><?php echo $idx++; ?></td>
+                                <td><?php echo htmlspecialchars($fs['faculty_name']); ?></td>
+                                <td><?php echo htmlspecialchars($fs['desig']); ?></td>
+                                <td><?php echo intval($fs['total_l']); ?></td>
+                                <td><?php echo intval($fs['total_p']); ?></td>
+                                <td><?php echo intval($fs['total_load']); ?></td>
+                                <td><?php echo $fs['years'] ? htmlspecialchars($fs['years']) : '-'; ?></td>
+                                <td><?php echo $fs['sections'] ? htmlspecialchars($fs['sections']) : '-'; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         <h3 class="section-title">LOAD CHART</h3>
         <?php if (empty($load_data)): ?>
             <div class="no-data-message">
@@ -303,13 +356,10 @@ footer {
             <table class="load-table">
                 <thead>
                     <tr class="header-row">
-                        <td colspan="13" style="text-align: center; font-size: 1.2em;">AMBALIKA INSTITUTE OF MANAGEMENT & TECHNOLOGY</td>
+                        <td colspan="13" style="text-align: center; font-size: 1.2em;"><?php echo htmlspecialchars($hod_data['college_name'] ? $hod_data['college_name'] : 'AMBALIKA INSTITUTE OF MANAGEMENT & TECHNOLOGY'); ?></td>
                     </tr>
                     <tr class="header-row">
                         <td colspan="13" style="text-align: center;">TEACHING LOAD DEPARTMENT - <?php echo strtoupper($hod_data['branch_name']); ?></td>
-                    </tr>
-                    <tr class="header-row">
-                        <td colspan="13" style="text-align: center;">SESSION 2025-26 ODD SEM</td>
                     </tr>
                     <tr>
                         <th>S.No.</th>

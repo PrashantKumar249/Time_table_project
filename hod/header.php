@@ -1,6 +1,6 @@
 <?php
-session_start();
-include '../include/db.php';
+if (session_status() !== PHP_SESSION_ACTIVE) session_start();
+include __DIR__ . '/../include/db.php';
 
 // Default values
 $branch_name = "Department";
@@ -18,7 +18,16 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['role'])) {
             $user_name = htmlspecialchars($user_data['hod_name']);
             $college_name = htmlspecialchars($user_data['college_name']);
             $college_address = htmlspecialchars($user_data['address']);
-            $college_logo = !empty($user_data['college_logo']) ? '../logo/' . htmlspecialchars($user_data['college_logo']) : $college_logo;
+            // Prefer the actual folder `Logo` (case-sensitive on some systems). Use placeholder if file missing.
+            $logo_filename = trim($user_data['college_logo']);
+            if (!empty($logo_filename) && file_exists(__DIR__ . '/../Logo/' . $logo_filename)) {
+                $college_logo = '../Logo/' . htmlspecialchars($logo_filename);
+            } elseif (!empty($logo_filename) && file_exists(__DIR__ . '/../logo/' . $logo_filename)) {
+                // fallback if folder is lowercase
+                $college_logo = '../logo/' . htmlspecialchars($logo_filename);
+            } else {
+                $college_logo = $college_logo; // keep default placeholder
+            }
         }
     }
 }

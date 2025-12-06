@@ -459,7 +459,7 @@ while ($row = mysqli_fetch_assoc($result)) {
     <!-- Main Cards Section -->
     <section class="cards-grid">
         <!-- Timetable Management Card -->
-        <a href="timetable_view.php" class="card-link">
+        <a href="timetable_generate.php" class="card-link">
             <div class="card card-blue">
                 <div class="card-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">

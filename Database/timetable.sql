@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS `faculty` (
   CONSTRAINT `faculty_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `faculty_ibfk_2` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE CASCADE,
   CONSTRAINT `faculty_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table timetable_management.faculty: ~26 rows (approximately)
 INSERT INTO `faculty` (`faculty_id`, `user_id`, `branch_id`, `faculty_name`, `email`, `created_by`, `created_at`, `password`, `is_coordinator`) VALUES
@@ -81,7 +81,7 @@ INSERT INTO `faculty` (`faculty_id`, `user_id`, `branch_id`, `faculty_name`, `em
 	(20, 20, 1, 'DR.P.S DIXIT', 'dr.p.s.dixit@example.com', 1, '2025-10-06 09:34:13', 'DR.P.S DIXIT', 0),
 	(21, 21, 1, 'DR.SWATI SHRIVASTAVA', 'dr.swati.shrivastava@example.com', 1, '2025-10-06 09:34:13', 'DR.SWATI SHRIVASTAVA', 0),
 	(22, 22, 1, 'DR.KUNAL GUPTA', 'dr.kunal.gupta@example.com', 1, '2025-10-06 09:34:13', 'DR.KUNAL GUPTA', 0),
-	(23, 23, 1, 'dr_krishnanand_mishra', 'dr.krishnanand.mishra@example.com', 1, '2025-10-06 09:34:13', 'DR.KRISHNANAND MISHRA', 0),
+	(23, 23, 1, 'dr_krishnanand_mishra', 'dr.krishnanand.mishra@example.com', 1, '2025-10-06 09:34:13', 'DR.KRISHNANAND MISHRA', 1),
 	(24, 24, 1, 'MR.AYODHYA PRASAD', 'mr.ayodhya.prasad@example.com', 1, '2025-10-06 09:34:13', 'MR.AYODHYA PRASAD', 0),
 	(25, 25, 1, 'MR.ATEBAR HAIDER', 'mr.atebar.haider@example.com', 1, '2025-10-06 09:34:13', 'MR.ATEBAR HAIDER', 0),
 	(26, 26, 1, 'MR.NIRANJAN SHRIVASTAV', 'mr.niranjan.shrivastav@example.com', 1, '2025-10-06 09:34:13', 'MR.NIRANJAN SHRIVASTAV', 0),
@@ -225,9 +225,9 @@ CREATE TABLE IF NOT EXISTS `faculty_subjects` (
   UNIQUE KEY `faculty_id` (`faculty_id`,`subject_id`),
   KEY `subject_id` (`subject_id`),
   CONSTRAINT `faculty_subjects_ibfk_1` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`faculty_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=81 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=88 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.faculty_subjects: ~33 rows (approximately)
+-- Dumping data for table timetable_management.faculty_subjects: ~30 rows (approximately)
 INSERT INTO `faculty_subjects` (`faculty_subject_id`, `faculty_id`, `subject_id`, `created_at`) VALUES
 	(36, 15, 139, '2025-10-06 09:34:13'),
 	(37, 16, 139, '2025-10-06 09:34:13'),
@@ -258,10 +258,10 @@ INSERT INTO `faculty_subjects` (`faculty_subject_id`, `faculty_id`, `subject_id`
 	(73, 41, 141, '2025-11-24 08:18:14'),
 	(74, 41, 143, '2025-11-24 08:18:14'),
 	(75, 41, 150, '2025-11-24 08:18:14'),
-	(76, 23, 145, '2025-11-24 08:19:47'),
-	(77, 23, 148, '2025-11-24 08:19:47'),
-	(78, 23, 151, '2025-11-24 08:19:47'),
-	(79, 44, 216, '2025-11-24 08:21:11');
+	(79, 44, 216, '2025-11-24 08:21:11'),
+	(85, 23, 145, '2025-12-04 09:46:51'),
+	(86, 23, 148, '2025-12-04 09:46:51'),
+	(87, 23, 151, '2025-12-04 09:46:51');
 
 -- Dumping structure for table timetable_management.hod
 CREATE TABLE IF NOT EXISTS `hod` (
@@ -293,42 +293,42 @@ INSERT INTO `hod` (`hod_id`, `user_id`, `branch_id`, `hod_name`, `email`, `creat
 -- Dumping structure for table timetable_management.rooms
 CREATE TABLE IF NOT EXISTS `rooms` (
   `room_id` int NOT NULL AUTO_INCREMENT,
-  `room_name` varchar(50) NOT NULL,
+  `room_number` varchar(50) NOT NULL,
   `capacity` int NOT NULL,
   `is_lab` tinyint(1) DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`room_id`),
-  UNIQUE KEY `room_name` (`room_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  UNIQUE KEY `room_name` (`room_number`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table timetable_management.rooms: ~2 rows (approximately)
-INSERT INTO `rooms` (`room_id`, `room_name`, `capacity`, `is_lab`, `created_at`) VALUES
-	(1, 'Room 101', 60, 0, '2025-09-25 14:31:59'),
-	(2, 'Lab CS1', 30, 1, '2025-09-25 14:31:59');
+INSERT INTO `rooms` (`room_id`, `room_number`, `capacity`, `is_lab`, `created_at`) VALUES
+	(2, 'Lab CS1', 30, 1, '2025-09-25 14:31:59'),
+	(3, '401', 0, 0, '2025-12-04 10:09:16'),
+	(4, '402', 0, 0, '2025-12-06 05:37:02'),
+	(5, '403', 0, 0, '2025-12-06 05:37:18');
 
 -- Dumping structure for table timetable_management.sections
 CREATE TABLE IF NOT EXISTS `sections` (
   `section_id` int NOT NULL AUTO_INCREMENT,
   `branch_id` int NOT NULL,
   `section_name` varchar(50) NOT NULL,
+  `room_id` int DEFAULT NULL,
   `year` int NOT NULL,
   `semester` int NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`section_id`),
   UNIQUE KEY `branch_id` (`branch_id`,`section_name`,`year`,`semester`),
-  CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  KEY `room_id` (`room_id`),
+  CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE CASCADE,
+  CONSTRAINT `sections_ibfk_2` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`room_id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.sections: ~8 rows (approximately)
-INSERT INTO `sections` (`section_id`, `branch_id`, `section_name`, `year`, `semester`, `created_at`) VALUES
-	(4, 1, 'B', 3, 5, '2025-11-18 11:33:20'),
-	(9, 1, 'A', 3, 5, '2025-11-24 07:12:50'),
-	(12, 1, 'C,D', 3, 1, '2025-11-24 07:18:27'),
-	(14, 1, 'C', 3, 1, '2025-11-24 07:18:52'),
-	(15, 1, 'A', 4, 1, '2025-11-24 07:51:27'),
-	(16, 1, 'B', 4, 2, '2025-11-24 07:51:43'),
-	(17, 1, 'C', 4, 1, '2025-11-24 07:51:51'),
-	(22, 1, 'B', 1, 1, '2025-12-03 07:46:47');
+-- Dumping data for table timetable_management.sections: ~6 rows (approximately)
+INSERT INTO `sections` (`section_id`, `branch_id`, `section_name`, `room_id`, `year`, `semester`, `created_at`) VALUES
+	(23, 1, 'A', 3, 2, 3, '2025-12-04 10:09:16'),
+	(24, 1, 'B', 4, 2, 3, '2025-12-06 05:37:02'),
+	(25, 1, 'C', 5, 2, 3, '2025-12-06 05:37:18');
 
 -- Dumping structure for table timetable_management.section_subjects
 CREATE TABLE IF NOT EXISTS `section_subjects` (
@@ -341,21 +341,40 @@ CREATE TABLE IF NOT EXISTS `section_subjects` (
   KEY `subject_id` (`subject_id`),
   CONSTRAINT `section_subjects_ibfk_1` FOREIGN KEY (`section_id`) REFERENCES `sections` (`section_id`) ON DELETE CASCADE,
   CONSTRAINT `section_subjects_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.section_subjects: ~11 rows (approximately)
+-- Dumping data for table timetable_management.section_subjects: ~30 rows (approximately)
 INSERT INTO `section_subjects` (`allocation_id`, `section_id`, `subject_id`, `created_at`) VALUES
-	(1, 9, 210, '2025-11-24 07:19:54'),
-	(2, 9, 31, '2025-11-24 07:19:54'),
-	(3, 9, 35, '2025-11-24 07:19:54'),
-	(4, 9, 30, '2025-11-24 07:19:54'),
-	(5, 15, 158, '2025-11-24 07:56:50'),
-	(6, 15, 155, '2025-11-24 07:56:50'),
-	(7, 15, 156, '2025-11-24 07:56:51'),
-	(8, 15, 154, '2025-11-24 07:56:51'),
-	(9, 15, 151, '2025-11-24 07:56:51'),
-	(10, 15, 160, '2025-11-24 07:56:51'),
-	(11, 15, 157, '2025-11-24 07:56:51');
+	(65, 23, 146, '2025-12-06 05:38:02'),
+	(66, 23, 143, '2025-12-06 05:38:02'),
+	(67, 23, 145, '2025-12-06 05:38:02'),
+	(68, 23, 148, '2025-12-06 05:38:02'),
+	(69, 23, 147, '2025-12-06 05:38:02'),
+	(70, 23, 139, '2025-12-06 05:38:02'),
+	(71, 23, 152, '2025-12-06 05:38:02'),
+	(72, 23, 141, '2025-12-06 05:38:02'),
+	(73, 23, 150, '2025-12-06 05:38:02'),
+	(74, 23, 149, '2025-12-06 05:38:02'),
+	(75, 24, 146, '2025-12-06 05:38:37'),
+	(76, 24, 149, '2025-12-06 05:38:37'),
+	(77, 24, 143, '2025-12-06 05:38:37'),
+	(78, 24, 145, '2025-12-06 05:38:37'),
+	(79, 24, 148, '2025-12-06 05:38:37'),
+	(80, 24, 147, '2025-12-06 05:38:37'),
+	(81, 24, 139, '2025-12-06 05:38:37'),
+	(82, 24, 152, '2025-12-06 05:38:37'),
+	(83, 24, 141, '2025-12-06 05:38:37'),
+	(84, 24, 150, '2025-12-06 05:38:37'),
+	(85, 25, 146, '2025-12-06 05:39:15'),
+	(86, 25, 149, '2025-12-06 05:39:15'),
+	(87, 25, 143, '2025-12-06 05:39:15'),
+	(88, 25, 145, '2025-12-06 05:39:15'),
+	(89, 25, 148, '2025-12-06 05:39:15'),
+	(90, 25, 147, '2025-12-06 05:39:15'),
+	(91, 25, 139, '2025-12-06 05:39:15'),
+	(92, 25, 152, '2025-12-06 05:39:15'),
+	(93, 25, 141, '2025-12-06 05:39:15'),
+	(94, 25, 150, '2025-12-06 05:39:15');
 
 -- Dumping structure for table timetable_management.subjects
 CREATE TABLE IF NOT EXISTS `subjects` (
@@ -459,12 +478,12 @@ CREATE TABLE IF NOT EXISTS `users` (
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table timetable_management.users: ~27 rows (approximately)
 INSERT INTO `users` (`user_id`, `username`, `password`, `role`, `email`, `created_at`) VALUES
 	(1, 'hod_cs1', 'hod123', 'hod', 'hod_cs1@example.com', '2025-09-25 14:31:58'),
-	(15, 'mr_umakant_pandey', 'MR.UMAKANT PANDEY', 'faculty', 'mr.umakant.pandey@example.com', '2025-10-06 09:34:13'),
+	(15, 'mr_umakant_pandey', '123456', 'faculty', 'mr.umakant.pandey@example.com', '2025-10-06 09:34:13'),
 	(16, 'dr_birendra_singh', 'DR.BIRENDRA SINGH', 'faculty', 'dr.birendra.singh@example.com', '2025-10-06 09:34:13'),
 	(17, 'dr_sudhakhar_dixit', 'DR.SUDHAKAR DIXIT', 'faculty', 'dr.sudhakhar.dixit@example.com', '2025-10-06 09:34:13'),
 	(18, 'dr_avaneesh_kumar_singh', 'DR.AVANEESH KUMAR SINGH', 'faculty', 'dr.avaneesh.kumar.singh@example.com', '2025-10-06 09:34:13'),
@@ -489,7 +508,8 @@ INSERT INTO `users` (`user_id`, `username`, `password`, `role`, `email`, `create
 	(43, 'mr_tushar', '123456', 'faculty', 'tushar@gmail.com', '2025-11-24 08:03:41'),
 	(44, 'miss_amreen', '123456', 'faculty', 'amreen@gmail.com', '2025-11-24 08:06:46'),
 	(45, 'versha_verma1', '123456', 'faculty', 'versha@gmail.com', '2025-11-24 08:08:27'),
-	(46, 'mr_sudheer', '123456', 'faculty', 'sudheer@gmail.com', '2025-11-24 08:21:11');
+	(46, 'mr_sudheer', '123456', 'faculty', 'sudheer@gmail.com', '2025-11-24 08:21:11'),
+	(48, 'test', 'test', 'faculty', 'test@nsd.com', '2025-12-04 09:34:53');
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

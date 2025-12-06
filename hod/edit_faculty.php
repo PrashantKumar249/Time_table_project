@@ -25,7 +25,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $faculty_id = (int)$_GET['id'];
 
 // Fetch existing faculty data
-$faculty_query = "SELECT f.faculty_id, u.user_id, f.faculty_name, f.email, u.username, u.password
+$faculty_query = "SELECT f.faculty_id, u.user_id, f.faculty_name, f.email, u.username, u.password, f.is_coordinator
                   FROM faculty f
                   JOIN users u ON f.user_id = u.user_id
                   WHERE f.faculty_id = $faculty_id AND f.branch_id = $branch_id";
@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_faculty'])) {
     $username = mysqli_real_escape_string($conn, $_POST['username']);
     $new_password = !empty($_POST['password']) ? mysqli_real_escape_string($conn, $_POST['password']) : $faculty_data['password'];
     $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $is_coordinator = isset($_POST['is_coordinator']) ? 1 : 0;
     
     if (empty($username) || empty($email)) {
         $errors[] = 'Username and email are required';
@@ -72,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_faculty'])) {
             if (mysqli_query($conn, $user_query)) {
                 // Update faculty
                 $faculty_name = $username; // Set faculty_name to username
-                $faculty_update = "UPDATE faculty SET faculty_name = '$faculty_name', email = '$email' WHERE faculty_id = $faculty_id";
+                $faculty_update = "UPDATE faculty SET faculty_name = '$faculty_name', email = '$email', is_coordinator = $is_coordinator WHERE faculty_id = $faculty_id";
                 if (mysqli_query($conn, $faculty_update)) {
                     // Handle subjects - first delete existing links
                     mysqli_query($conn, "DELETE FROM faculty_subjects WHERE faculty_id = $faculty_id");
@@ -424,6 +425,12 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="form-group">
                 <label for="password">New Password (leave blank to keep current)</label>
                 <input type="password" id="password" name="password" class="input-field">
+            </div>
+            <div class="form-group">
+                <label for="is_coordinator" style="display: flex; align-items: center;">
+                    <input type="checkbox" id="is_coordinator" name="is_coordinator" <?php echo ($faculty_data['is_coordinator'] ?? 0) ? 'checked' : ''; ?> style="width: auto; margin-right: 0.5rem; accent-color: #3b82f6;">
+                    <span>Mark as Coordinator</span>
+                </label>
             </div>
             
             <!-- Existing Subjects -->

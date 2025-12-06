@@ -287,9 +287,9 @@ foreach ($faculty_list_raw as $fac) {
                     <button type="button" onclick="addSubject()" class="add-subject-btn" style="margin-top: 0.5rem;"><i class="fas fa-plus"></i> Add Another Subject</button>
                 </div>
               
-                <div class="form-group" style="grid-column: span 2; text-align: center; display: flex; justify-content: center; gap: 1rem;">
-                    <button type="submit" name="add_faculty" class="button button-primary"><i class="fas fa-save"></i> Add Faculty</button>
-                    <button type="reset" class="button button-secondary"><i class="fas fa-times"></i> Clear</button>
+                <div class="form-group" style="grid-column: span 2; display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="submit" name="add_faculty" class="button-submit"><i class="fas fa-save"></i> Add Faculty</button>
+                    <button type="reset" class="button-reset"><i class="fas fa-times"></i> Clear</button>
                 </div>
             </form>
         </div>
@@ -354,17 +354,17 @@ foreach ($faculty_list_raw as $fac) {
                         <?php if ($total_pages > 1): ?>
                             <div class="pagination" id="pagination">
                                 <?php if ($page > 1): ?>
-                                    <a href="javascript:void(0)" class="pagination-link" onclick="loadResults(<?php echo $page - 1; ?>, '<?php echo htmlspecialchars($search); ?>')">&laquo; Previous</a>
+                                    <a href="?<?php echo $search_param; ?>page=<?php echo $page - 1; ?>" class="pagination-link" onclick="loadResults(<?php echo $page - 1; ?>, '<?php echo htmlspecialchars($search); ?>')">&laquo; Previous</a>
                                 <?php endif; ?>
                                 <?php for ($i = 1; $i <= $total_pages; $i++): ?>
                                     <?php if ($i == $page): ?>
                                         <span class="pagination-current"><?php echo $i; ?></span>
                                     <?php else: ?>
-                                        <a href="javascript:void(0)" class="pagination-link" onclick="loadResults(<?php echo $i; ?>, '<?php echo htmlspecialchars($search); ?>')"><?php echo $i; ?></a>
+                                        <a href="?<?php echo $search_param; ?>page=<?php echo $i; ?>" class="pagination-link" onclick="loadResults(<?php echo $i; ?>, '<?php echo htmlspecialchars($search); ?>')"><?php echo $i; ?></a>
                                     <?php endif; ?>
                                 <?php endfor; ?>
                                 <?php if ($page < $total_pages): ?>
-                                    <a href="javascript:void(0)" class="pagination-link" onclick="loadResults(<?php echo $page + 1; ?>, '<?php echo htmlspecialchars($search); ?>')">Next &raquo;</a>
+                                    <a href="?<?php echo $search_param; ?>page=<?php echo $page + 1; ?>" class="pagination-link" onclick="loadResults(<?php echo $page + 1; ?>, '<?php echo htmlspecialchars($search); ?>')">Next &raquo;</a>
                                 <?php endif; ?>
                             </div>
                         <?php endif; ?>
@@ -516,22 +516,25 @@ function loadResults(page, search) {
                         </tbody>
                     </table>
             `;
-            if (data.total_pages > 1) {
+                if (data.total_pages > 1) {
                 tableHTML += `
                     <div class="pagination">
                 `;
                 if (data.current_page > 1) {
-                    tableHTML += `<a href="javascript:void(0)" class="pagination-link" onclick="loadResults(${data.current_page - 1}, '${escapeHtml(data.search)}')">&laquo; Previous</a>`;
+                    const prevHref = `?search=${encodeURIComponent(data.search)}&page=${data.current_page - 1}`;
+                    tableHTML += `<a href="${prevHref}" class="pagination-link" onclick="loadResults(${data.current_page - 1}, '${escapeHtml(data.search)}')">&laquo; Previous</a>`;
                 }
                 for (let i = 1; i <= data.total_pages; i++) {
                     if (i === data.current_page) {
                         tableHTML += `<span class="pagination-current">${i}</span>`;
                     } else {
-                        tableHTML += `<a href="javascript:void(0)" class="pagination-link" onclick="loadResults(${i}, '${escapeHtml(data.search)}')">${i}</a>`;
+                        const href = `?search=${encodeURIComponent(data.search)}&page=${i}`;
+                        tableHTML += `<a href="${href}" class="pagination-link" onclick="loadResults(${i}, '${escapeHtml(data.search)}')">${i}</a>`;
                     }
                 }
                 if (data.current_page < data.total_pages) {
-                    tableHTML += `<a href="javascript:void(0)" class="pagination-link" onclick="loadResults(${data.current_page + 1}, '${escapeHtml(data.search)}')">Next &raquo;</a>`;
+                    const nextHref = `?search=${encodeURIComponent(data.search)}&page=${data.current_page + 1}`;
+                    tableHTML += `<a href="${nextHref}" class="pagination-link" onclick="loadResults(${data.current_page + 1}, '${escapeHtml(data.search)}')">Next &raquo;</a>`;
                 }
                 tableHTML += `</div>`;
             }
@@ -650,8 +653,50 @@ body {
 .add-subject-btn:hover {
     background: #059669;
 }
+.button-submit {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.16s ease;
+    width: auto;
+    box-shadow: 0 1px 2px rgba(59, 130, 246, 0.12);
+}
+.button-submit:hover {
+    background: #2563eb;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+.button-reset {
+    background: #6b7280;
+    color: white;
+    border: none;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.16s ease;
+    width: auto;
+    box-shadow: 0 1px 2px rgba(107, 114, 128, 0.12);
+}
+.button-reset:hover {
+    background: #4b5563;
+    box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2);
+}
 .add-subject-btn i {
     margin-right: 0.125rem;
+}
+.button-submit i,
+.button-reset i {
+    margin-right: 0.4rem;
 }
 .remove-subject-btn {
     background: #ef4444;
@@ -700,6 +745,7 @@ body {
     margin: 0 0.125rem;
     transition: all 0.14s ease;
     align-items: center;
+    width: auto;
 }
 .button i {
     margin-right: 0.4rem;
@@ -707,9 +753,12 @@ body {
 .button-primary {
     background: #3b82f6;
     color: white;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(59, 130, 246, 0.12);
 }
 .button-primary:hover {
     background: #2563eb;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
 }
 .button-danger {
     background: #ef4444;
@@ -721,9 +770,12 @@ body {
 .button-secondary {
     background: #6b7280;
     color: white;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(107, 114, 128, 0.12);
 }
 .button-secondary:hover {
     background: #4b5563;
+    box-shadow: 0 2px 4px rgba(107, 114, 128, 0.2);
 }
 .form-group .add-subject-btn,
 .form-group .remove-subject-btn {

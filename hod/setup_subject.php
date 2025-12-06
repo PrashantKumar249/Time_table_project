@@ -28,11 +28,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_section'])) {
     $year = intval($_POST['year']);
     $semester = intval($_POST['semester']);
     $section_name = strtoupper(mysqli_real_escape_string($conn, trim($_POST['section_name'])));
-    if ($year >= 1 && $year <= 4 && $semester >= 1 && $semester <= 8 && !empty($section_name) && strlen($section_name) <= 3) { // Allow A, B, etc. up to 3 chars
+    $room_input = isset($_POST['room_number']) ? trim($_POST['room_number']) : '';
+
+    // Validate: year 1-4, semester 1-8, section must be a single uppercase letter (A-Z)
+    if ($year >= 1 && $year <= 4 && $semester >= 1 && $semester <= 8 && preg_match('/^[A-Z]$/', $section_name)) {
+        // Handle room: find existing room or insert new one (optional)
+        $room_id = 'NULL';
+        if ($room_input !== '') {
+            $room_safe = mysqli_real_escape_string($conn, $room_input);
+            $room_check_q = "SELECT room_id FROM rooms WHERE room_number = '$room_safe' LIMIT 1";
+            $room_check_r = mysqli_query($conn, $room_check_q);
+            if ($room_check_r && mysqli_num_rows($room_check_r) > 0) {
+                $room_row = mysqli_fetch_assoc($room_check_r);
+                $room_id = intval($room_row['room_id']);
+            } else {
+                // Insert new room with default capacity 0
+                $ins_room_q = "INSERT INTO rooms (room_number, capacity) VALUES ('$room_safe', 0)";
+                if (mysqli_query($conn, $ins_room_q)) {
+                    $room_id = mysqli_insert_id($conn);
+                } else {
+                    // If room insert fails, keep room NULL but record error
+                    $room_id = 'NULL';
+                }
+            }
+        }
+
         $check_query = "SELECT section_id FROM sections WHERE branch_id = $hod_branch_id AND year = $year AND semester = $semester AND section_name = '$section_name'";
         $check_result = mysqli_query($conn, $check_query);
         if (mysqli_num_rows($check_result) == 0) {
-            $query = "INSERT INTO sections (branch_id, year, semester, section_name) VALUES ($hod_branch_id, $year, $semester, '$section_name')";
+            $room_part = ($room_id === 'NULL') ? 'NULL' : intval($room_id);
+            $query = "INSERT INTO sections (branch_id, year, semester, section_name, room_id) VALUES ($hod_branch_id, $year, $semester, '$section_name', $room_part)";
             if (mysqli_query($conn, $query)) {
                 $new_section_id = mysqli_insert_id($conn);
                 $success_section = "Section '$section_name' added successfully for Year $year, Sem $semester! ID: $new_section_id";
@@ -43,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_section'])) {
             $error_section = "Section '$section_name' already exists for this year/sem.";
         }
     } else {
-        $error_section = "Invalid input. Year (1-4), Sem (1-8), Section (e.g., A, B).";
+        $error_section = "Invalid input. Year (1-4), Sem (1-8), Section must be a single uppercase letter (A-Z).";
     }
 }
 
@@ -92,7 +117,7 @@ while ($row = mysqli_fetch_assoc($years_result)) {
 $sem_options = range(1, 8);
 
 // Fetch Sections Dynamically (filtered by year and sem via JS/AJAX, but initial load none)
-$sections_query = "SELECT section_id, section_name, year, semester FROM sections WHERE branch_id = $hod_branch_id ORDER BY year, semester, section_name";
+$sections_query = "SELECT s.section_id, s.section_name, s.year, s.semester, s.room_id, r.room_number FROM sections s LEFT JOIN rooms r ON s.room_id = r.room_id WHERE s.branch_id = $hod_branch_id ORDER BY s.year, s.semester, s.section_name";
 $sections_result = mysqli_query($conn, $sections_query);
 $all_sections = [];
 while ($row = mysqli_fetch_assoc($sections_result)) {
@@ -105,6 +130,25 @@ $subjects_result = mysqli_query($conn, $subjects_query);
 $all_subjects = [];
 while ($row = mysqli_fetch_assoc($subjects_result)) {
     $all_subjects[] = $row;
+}
+
+// Build section -> allocated subjects mapping
+$section_allocations = [];
+$alloc_q = "SELECT section_id, subject_id FROM section_subjects";
+$alloc_r = mysqli_query($conn, $alloc_q);
+if ($alloc_r) {
+    while ($ar = mysqli_fetch_assoc($alloc_r)) {
+        $sid = intval($ar['section_id']);
+        $sub = intval($ar['subject_id']);
+        if (!isset($section_allocations[$sid])) $section_allocations[$sid] = [];
+        $section_allocations[$sid][] = $sub;
+    }
+}
+
+// Build subject map for quick lookup by subject_id
+$subject_map = [];
+foreach ($all_subjects as $s) {
+    $subject_map[intval($s['subject_id'])] = $s;
 }
 ?>
 
@@ -119,7 +163,9 @@ while ($row = mysqli_fetch_assoc($subjects_result)) {
     button:hover { background: #45a049; }
     button:disabled { background: #ccc; cursor: not-allowed; }
     .subjects-list { max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; }
-    .subject-item { margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 4px; }
+    .subject-item { margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; }
+    .subject-item label { margin: 0; padding-right: 10px; flex: 1; }
+    .subject-item input[type="checkbox"] { margin-left: 10px; }
     .add-section-btn { background: yellow; color: black; padding: 10px 15px; }
     .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
     .modal-content { background: white; margin: 15% auto; padding: 20px; border-radius: 8px; width: 80%; max-width: 400px; }
@@ -162,8 +208,12 @@ while ($row = mysqli_fetch_assoc($subjects_result)) {
             </select>
         </div>
         <div class="form-group">
-            <label for="section_name">Section Name (e.g., A, B):</label>
-            <input type="text" id="section_name" name="section_name" maxlength="3" required placeholder="A">
+            <label for="section_name">Section Name (single uppercase letter, e.g., A):</label>
+            <input type="text" id="section_name" name="section_name" maxlength="1" pattern="[A-Z]" title="Enter single uppercase letter (A-Z)" required placeholder="A" oninput="this.value = this.value.toUpperCase().replace(/[^A-Z]/g, '')">
+        </div>
+        <div class="form-group">
+            <label for="room_number">Room Number (optional):</label>
+            <input type="text" id="room_number" name="room_number" maxlength="50" placeholder="Room 101 or Lab CS1">
         </div>
         <button type="submit" class="add-section-btn">Add Section</button>
     </form>
@@ -191,7 +241,7 @@ while ($row = mysqli_fetch_assoc($subjects_result)) {
         </div>
         <div class="form-group">
             <label for="section_id">Section:</label>
-            <select id="section_id" name="section_id" required disabled onchange="toggleSaveButton()">
+            <select id="section_id" name="section_id" required disabled onchange="filterSectionsAndSubjects()">
                 <option value="">Select Year/Sem First</option>
             </select>
         </div>
@@ -204,11 +254,53 @@ while ($row = mysqli_fetch_assoc($subjects_result)) {
         </div>
         <button type="submit" name="allocate_subjects" id="saveBtn" disabled>Save Allocation</button>
     </form>
+
+        <!-- Existing Sections & Allocations -->
+        <h2 style="margin-top:24px">Existing Sections & Allocated Subjects</h2>
+        <div id="sections-list">
+            <?php if (empty($all_sections)): ?>
+                <p>No sections added yet.</p>
+            <?php else: ?>
+                <?php foreach ($all_sections as $sec): ?>
+                    <div class="section-card" style="border:1px solid #eee;padding:12px;border-radius:6px;margin-bottom:10px;background:#fafafa;">
+                        <strong>Section: <?php echo htmlspecialchars($sec['section_name']); ?></strong>
+                        &nbsp;|&nbsp; Year: <?php echo intval($sec['year']); ?>
+                        &nbsp;|&nbsp; Sem: <?php echo intval($sec['semester']); ?>
+                        <?php if (!empty($sec['room_number'])): ?>
+                            &nbsp;|&nbsp; Room: <?php echo htmlspecialchars($sec['room_number']); ?>
+                        <?php endif; ?>
+                        <div style="margin-top:8px">
+                            <em>Allocated Subjects:</em>
+                            <?php
+                                $sid = intval($sec['section_id']);
+                                $allocated = isset($section_allocations[$sid]) ? $section_allocations[$sid] : [];
+                                if (empty($allocated)) {
+                                    echo '<div style="color:#666;margin-top:6px">No subjects allocated.</div>';
+                                } else {
+                                    echo '<ul style="margin:8px 0 0 18px;padding:0">';
+                                    foreach ($allocated as $subid) {
+                                        $subid = intval($subid);
+                                        if (isset($subject_map[$subid])) {
+                                            $ss = $subject_map[$subid];
+                                            echo '<li style="margin-bottom:4px">' . htmlspecialchars($ss['subject_code']) . ' - ' . htmlspecialchars($ss['subject_name']) . ' (' . intval($ss['weekly_hours']) . ' hrs)</li>';
+                                        } else {
+                                            echo '<li style="margin-bottom:4px;color:#999">Subject ID ' . $subid . '</li>';
+                                        }
+                                    }
+                                    echo '</ul>';
+                                }
+                            ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
 </div>
 
 <script>
 let allSections = <?php echo json_encode($all_sections); ?>;
 let allSubjects = <?php echo json_encode($all_subjects); ?>;
+let sectionAllocations = <?php echo json_encode($section_allocations); ?>; // mapping: section_id -> [subject_id,...]
 let selectedSubjects = [];
 
 function filterSectionsAndSubjects() {
@@ -228,6 +320,7 @@ function filterSectionsAndSubjects() {
     }
 
     // Filter sections by year and semester directly
+    const prevSelected = sectionSelect.value ? String(sectionSelect.value) : null;
     const filteredSections = allSections.filter(s => parseInt(s.year) === parseInt(year) && parseInt(s.semester) === parseInt(sem));
     sectionSelect.innerHTML = '<option value="">Select Section</option>';
     if (filteredSections.length === 0) {
@@ -236,7 +329,12 @@ function filterSectionsAndSubjects() {
         filteredSections.forEach(sec => {
             const option = document.createElement('option');
             option.value = sec.section_id;
-            option.textContent = `${sec.section_name} (Year ${sec.year}, Sem ${sec.semester})`;
+            const roomText = sec.room_number ? ` - Room: ${sec.room_number}` : '';
+            option.textContent = `${sec.section_name} (Year ${sec.year}, Sem ${sec.semester})${roomText}`;
+            // Preserve previous selection if present
+            if (prevSelected && String(sec.section_id) === prevSelected) {
+                option.selected = true;
+            }
             sectionSelect.appendChild(option);
         });
     }
@@ -248,31 +346,31 @@ function filterSectionsAndSubjects() {
     if (filteredSubjects.length === 0) {
         subjectsContainer.innerHTML = '<p>No subjects for this year/semester.</p>';
     } else {
+        // If a section is selected (after rebuilding), get its allocations to pre-check
+        const selectedSectionId = sectionSelect.value ? parseInt(sectionSelect.value) : null;
+        const allocatedForSection = (selectedSectionId && sectionAllocations[selectedSectionId]) ? sectionAllocations[selectedSectionId] : [];
+        selectedSubjects = [];
         filteredSubjects.forEach(sub => {
             const div = document.createElement('div');
             div.className = 'subject-item';
+            const isChecked = allocatedForSection.includes(parseInt(sub.subject_id));
+            // label on left, checkbox on right
             div.innerHTML = `
-                <input type="checkbox" value="${sub.subject_id}" onchange="handleCheckboxChange(this)">
-                <label>${sub.subject_code} - ${sub.subject_name} (${sub.weekly_hours} hrs)</label>
+                <label for="sub_${sub.subject_id}">${sub.subject_code} - ${sub.subject_name} (${sub.weekly_hours} hrs)</label>
+                <input id="sub_${sub.subject_id}" type="checkbox" value="${sub.subject_id}" onchange="handleCheckboxChange(this)" ${isChecked ? 'checked' : ''}>
             `;
             subjectsContainer.appendChild(div);
+            if (isChecked) selectedSubjects.push(parseInt(sub.subject_id));
         });
+        updateHiddenInput();
     }
-    selectedSubjects = [];
-    updateHiddenInput();
     toggleSaveButton();
 }
 
 function handleCheckboxChange(checkbox) {
     const id = parseInt(checkbox.value);
     if (checkbox.checked) {
-        if (selectedSubjects.length < 10) { // Limit to 10 subjects max
-            if (!selectedSubjects.includes(id)) selectedSubjects.push(id);
-        } else {
-            checkbox.checked = false;
-            alert('Maximum 10 subjects allowed!');
-            return;
-        }
+        if (!selectedSubjects.includes(id)) selectedSubjects.push(id);
     } else {
         selectedSubjects = selectedSubjects.filter(s => s !== id);
     }
