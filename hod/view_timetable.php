@@ -123,14 +123,14 @@ function fmt_time($t){ return date('H:i', strtotime($t)); }
                     <thead>
                         <tr>
                             <th class="time-col">Time</th>
-                            <?php foreach (array_slice($days,0,5) as $d) echo '<th>'.htmlspecialchars($d).'</th>'; ?>
+                            <?php foreach ($days as $d) echo '<th>'.htmlspecialchars($d).'</th>'; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($time_rows as $start): ?>
                             <tr>
                                 <td class="time-col"><?php echo fmt_time($start); ?></td>
-                                <?php foreach (array_slice($days,0,5) as $d):
+                                <?php foreach ($days as $d):
                                     $cell = $slots[$d][$start] ?? null;
                                     if (!$cell) { echo '<td class="empty-cell">-</td>'; continue; }
                                     $is_lab = (isset($cell['is_lab']) && $cell['is_lab']);

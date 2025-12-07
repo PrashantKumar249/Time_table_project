@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS `branches` (
 
 -- Dumping data for table timetable_management.branches: ~18 rows (approximately)
 INSERT INTO `branches` (`branch_id`, `branch_name`, `created_at`) VALUES
-	(1, 'Computer Science', '2025-09-25 14:31:59'),
+	(1, 'Computer Science & Engineering', '2025-09-25 14:31:59'),
 	(2, 'Mechanical Engineering', '2025-09-25 14:31:59'),
 	(3, 'Electrical Engineering', '2025-09-25 15:58:39'),
 	(4, 'Civil Engineering', '2025-09-25 15:58:39'),
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS `faculty` (
   CONSTRAINT `faculty_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `faculty_ibfk_2` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE CASCADE,
   CONSTRAINT `faculty_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT
-) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table timetable_management.faculty: ~26 rows (approximately)
 INSERT INTO `faculty` (`faculty_id`, `user_id`, `branch_id`, `faculty_name`, `email`, `created_by`, `created_at`, `password`, `is_coordinator`) VALUES
@@ -80,7 +80,7 @@ INSERT INTO `faculty` (`faculty_id`, `user_id`, `branch_id`, `faculty_name`, `em
 	(19, 19, 1, 'MISS.ANUBHUTI RAO', 'miss.anubhuti.rao@example.com', 1, '2025-10-06 09:34:13', 'MISS.ANUBHUTI RAO', 0),
 	(20, 20, 1, 'DR.P.S DIXIT', 'dr.p.s.dixit@example.com', 1, '2025-10-06 09:34:13', 'DR.P.S DIXIT', 0),
 	(21, 21, 1, 'DR.SWATI SHRIVASTAVA', 'dr.swati.shrivastava@example.com', 1, '2025-10-06 09:34:13', 'DR.SWATI SHRIVASTAVA', 0),
-	(22, 22, 1, 'DR.KUNAL GUPTA', 'dr.kunal.gupta@example.com', 1, '2025-10-06 09:34:13', 'DR.KUNAL GUPTA', 0),
+	(22, 22, 1, 'dr_kunal_gupta', 'dr.kunal.gupta@example.com', 1, '2025-10-06 09:34:13', 'DR.KUNAL GUPTA', 1),
 	(23, 23, 1, 'dr_krishnanand_mishra', 'dr.krishnanand.mishra@example.com', 1, '2025-10-06 09:34:13', 'DR.KRISHNANAND MISHRA', 1),
 	(24, 24, 1, 'MR.AYODHYA PRASAD', 'mr.ayodhya.prasad@example.com', 1, '2025-10-06 09:34:13', 'MR.AYODHYA PRASAD', 0),
 	(25, 25, 1, 'MR.ATEBAR HAIDER', 'mr.atebar.haider@example.com', 1, '2025-10-06 09:34:13', 'MR.ATEBAR HAIDER', 0),
@@ -98,7 +98,8 @@ INSERT INTO `faculty` (`faculty_id`, `user_id`, `branch_id`, `faculty_name`, `em
 	(41, 43, 1, 'mr_tushar', 'tushar@gmail.com', 1, '2025-11-24 08:03:41', '123456', 0),
 	(42, 44, 1, 'miss_amreen', 'amreen@gmail.com', 1, '2025-11-24 08:06:46', '123456', 0),
 	(43, 45, 1, 'versha_verma1', 'versha@gmail.com', 1, '2025-11-24 08:08:27', '123456', 0),
-	(44, 46, 1, 'mr_sudheer', 'sudheer@gmail.com', 1, '2025-11-24 08:21:11', '123456', 0);
+	(44, 46, 1, 'mr_sudheer', 'sudheer@gmail.com', 1, '2025-11-24 08:21:11', '123456', 0),
+	(47, 49, 1, 'ps.dixit', 'ps@abc.com', 1, '2025-12-06 08:08:05', '123456', 1);
 
 -- Dumping structure for table timetable_management.faculty_attendance
 CREATE TABLE IF NOT EXISTS `faculty_attendance` (
@@ -225,7 +226,7 @@ CREATE TABLE IF NOT EXISTS `faculty_subjects` (
   UNIQUE KEY `faculty_id` (`faculty_id`,`subject_id`),
   KEY `subject_id` (`subject_id`),
   CONSTRAINT `faculty_subjects_ibfk_1` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`faculty_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=88 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=90 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table timetable_management.faculty_subjects: ~30 rows (approximately)
 INSERT INTO `faculty_subjects` (`faculty_subject_id`, `faculty_id`, `subject_id`, `created_at`) VALUES
@@ -236,7 +237,6 @@ INSERT INTO `faculty_subjects` (`faculty_subject_id`, `faculty_id`, `subject_id`
 	(40, 19, 141, '2025-10-06 09:34:13'),
 	(41, 20, 142, '2025-10-06 09:34:13'),
 	(42, 21, 142, '2025-10-06 09:34:13'),
-	(43, 22, 143, '2025-10-06 09:34:13'),
 	(45, 24, 145, '2025-10-06 09:34:13'),
 	(46, 25, 145, '2025-10-06 09:34:13'),
 	(47, 26, 155, '2025-10-06 09:34:13'),
@@ -261,7 +261,9 @@ INSERT INTO `faculty_subjects` (`faculty_subject_id`, `faculty_id`, `subject_id`
 	(79, 44, 216, '2025-11-24 08:21:11'),
 	(85, 23, 145, '2025-12-04 09:46:51'),
 	(86, 23, 148, '2025-12-04 09:46:51'),
-	(87, 23, 151, '2025-12-04 09:46:51');
+	(87, 23, 151, '2025-12-04 09:46:51'),
+	(88, 22, 143, '2025-12-06 05:56:55'),
+	(89, 47, 208, '2025-12-06 08:08:05');
 
 -- Dumping structure for table timetable_management.hod
 CREATE TABLE IF NOT EXISTS `hod` (
@@ -299,14 +301,16 @@ CREATE TABLE IF NOT EXISTS `rooms` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`room_id`),
   UNIQUE KEY `room_name` (`room_number`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.rooms: ~2 rows (approximately)
+-- Dumping data for table timetable_management.rooms: ~6 rows (approximately)
 INSERT INTO `rooms` (`room_id`, `room_number`, `capacity`, `is_lab`, `created_at`) VALUES
 	(2, 'Lab CS1', 30, 1, '2025-09-25 14:31:59'),
 	(3, '401', 0, 0, '2025-12-04 10:09:16'),
 	(4, '402', 0, 0, '2025-12-06 05:37:02'),
-	(5, '403', 0, 0, '2025-12-06 05:37:18');
+	(5, '403', 0, 0, '2025-12-06 05:37:18'),
+	(6, '301', 0, 0, '2025-12-06 08:03:50'),
+	(7, '302', 0, 0, '2025-12-06 08:04:05');
 
 -- Dumping structure for table timetable_management.sections
 CREATE TABLE IF NOT EXISTS `sections` (
@@ -322,13 +326,15 @@ CREATE TABLE IF NOT EXISTS `sections` (
   KEY `room_id` (`room_id`),
   CONSTRAINT `sections_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE CASCADE,
   CONSTRAINT `sections_ibfk_2` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`room_id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=26 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.sections: ~6 rows (approximately)
+-- Dumping data for table timetable_management.sections: ~5 rows (approximately)
 INSERT INTO `sections` (`section_id`, `branch_id`, `section_name`, `room_id`, `year`, `semester`, `created_at`) VALUES
 	(23, 1, 'A', 3, 2, 3, '2025-12-04 10:09:16'),
 	(24, 1, 'B', 4, 2, 3, '2025-12-06 05:37:02'),
-	(25, 1, 'C', 5, 2, 3, '2025-12-06 05:37:18');
+	(25, 1, 'C', 5, 2, 3, '2025-12-06 05:37:18'),
+	(26, 1, 'A', 6, 1, 1, '2025-12-06 08:03:50'),
+	(27, 1, 'B', 7, 1, 1, '2025-12-06 08:04:05');
 
 -- Dumping structure for table timetable_management.section_subjects
 CREATE TABLE IF NOT EXISTS `section_subjects` (
@@ -341,40 +347,58 @@ CREATE TABLE IF NOT EXISTS `section_subjects` (
   KEY `subject_id` (`subject_id`),
   CONSTRAINT `section_subjects_ibfk_1` FOREIGN KEY (`section_id`) REFERENCES `sections` (`section_id`) ON DELETE CASCADE,
   CONSTRAINT `section_subjects_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=143 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.section_subjects: ~30 rows (approximately)
+-- Dumping data for table timetable_management.section_subjects: ~48 rows (approximately)
 INSERT INTO `section_subjects` (`allocation_id`, `section_id`, `subject_id`, `created_at`) VALUES
-	(65, 23, 146, '2025-12-06 05:38:02'),
-	(66, 23, 143, '2025-12-06 05:38:02'),
-	(67, 23, 145, '2025-12-06 05:38:02'),
-	(68, 23, 148, '2025-12-06 05:38:02'),
-	(69, 23, 147, '2025-12-06 05:38:02'),
-	(70, 23, 139, '2025-12-06 05:38:02'),
-	(71, 23, 152, '2025-12-06 05:38:02'),
-	(72, 23, 141, '2025-12-06 05:38:02'),
-	(73, 23, 150, '2025-12-06 05:38:02'),
-	(74, 23, 149, '2025-12-06 05:38:02'),
-	(75, 24, 146, '2025-12-06 05:38:37'),
-	(76, 24, 149, '2025-12-06 05:38:37'),
-	(77, 24, 143, '2025-12-06 05:38:37'),
-	(78, 24, 145, '2025-12-06 05:38:37'),
-	(79, 24, 148, '2025-12-06 05:38:37'),
-	(80, 24, 147, '2025-12-06 05:38:37'),
-	(81, 24, 139, '2025-12-06 05:38:37'),
-	(82, 24, 152, '2025-12-06 05:38:37'),
-	(83, 24, 141, '2025-12-06 05:38:37'),
-	(84, 24, 150, '2025-12-06 05:38:37'),
-	(85, 25, 146, '2025-12-06 05:39:15'),
-	(86, 25, 149, '2025-12-06 05:39:15'),
-	(87, 25, 143, '2025-12-06 05:39:15'),
-	(88, 25, 145, '2025-12-06 05:39:15'),
-	(89, 25, 148, '2025-12-06 05:39:15'),
-	(90, 25, 147, '2025-12-06 05:39:15'),
-	(91, 25, 139, '2025-12-06 05:39:15'),
-	(92, 25, 152, '2025-12-06 05:39:15'),
-	(93, 25, 141, '2025-12-06 05:39:15'),
-	(94, 25, 150, '2025-12-06 05:39:15');
+	(95, 23, 146, '2025-12-06 07:39:35'),
+	(96, 23, 149, '2025-12-06 07:39:35'),
+	(97, 23, 143, '2025-12-06 07:39:35'),
+	(98, 23, 145, '2025-12-06 07:39:35'),
+	(99, 23, 148, '2025-12-06 07:39:35'),
+	(100, 23, 147, '2025-12-06 07:39:35'),
+	(101, 23, 139, '2025-12-06 07:39:35'),
+	(102, 23, 151, '2025-12-06 07:39:35'),
+	(103, 23, 216, '2025-12-06 07:39:35'),
+	(104, 23, 152, '2025-12-06 07:39:35'),
+	(105, 23, 141, '2025-12-06 07:39:35'),
+	(106, 23, 150, '2025-12-06 07:39:35'),
+	(107, 24, 146, '2025-12-06 07:40:16'),
+	(108, 24, 149, '2025-12-06 07:40:16'),
+	(109, 24, 145, '2025-12-06 07:40:16'),
+	(110, 24, 143, '2025-12-06 07:40:16'),
+	(111, 24, 148, '2025-12-06 07:40:16'),
+	(112, 24, 147, '2025-12-06 07:40:16'),
+	(113, 24, 139, '2025-12-06 07:40:16'),
+	(114, 24, 151, '2025-12-06 07:40:16'),
+	(115, 24, 216, '2025-12-06 07:40:16'),
+	(116, 24, 152, '2025-12-06 07:40:16'),
+	(117, 24, 141, '2025-12-06 07:40:16'),
+	(118, 24, 150, '2025-12-06 07:40:16'),
+	(119, 25, 146, '2025-12-06 07:41:02'),
+	(120, 25, 149, '2025-12-06 07:41:02'),
+	(121, 25, 143, '2025-12-06 07:41:02'),
+	(122, 25, 145, '2025-12-06 07:41:02'),
+	(123, 25, 148, '2025-12-06 07:41:02'),
+	(124, 25, 147, '2025-12-06 07:41:02'),
+	(125, 25, 139, '2025-12-06 07:41:02'),
+	(126, 25, 151, '2025-12-06 07:41:02'),
+	(127, 25, 216, '2025-12-06 07:41:02'),
+	(128, 25, 152, '2025-12-06 07:41:02'),
+	(129, 25, 141, '2025-12-06 07:41:02'),
+	(130, 25, 150, '2025-12-06 07:41:02'),
+	(131, 26, 208, '2025-12-06 08:04:41'),
+	(132, 26, 215, '2025-12-06 08:04:41'),
+	(133, 26, 185, '2025-12-06 08:04:41'),
+	(134, 26, 186, '2025-12-06 08:04:41'),
+	(135, 26, 207, '2025-12-06 08:04:41'),
+	(136, 26, 187, '2025-12-06 08:04:41'),
+	(137, 27, 208, '2025-12-06 08:05:17'),
+	(138, 27, 215, '2025-12-06 08:05:17'),
+	(139, 27, 185, '2025-12-06 08:05:17'),
+	(140, 27, 186, '2025-12-06 08:05:17'),
+	(141, 27, 207, '2025-12-06 08:05:17'),
+	(142, 27, 187, '2025-12-06 08:05:17');
 
 -- Dumping structure for table timetable_management.subjects
 CREATE TABLE IF NOT EXISTS `subjects` (
@@ -392,9 +416,9 @@ CREATE TABLE IF NOT EXISTS `subjects` (
   KEY `branch_id` (`branch_id`),
   KEY `idx_year_sem` (`year`,`semester`),
   CONSTRAINT `subjects_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=218 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=221 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.subjects: ~46 rows (approximately)
+-- Dumping data for table timetable_management.subjects: ~49 rows (approximately)
 INSERT INTO `subjects` (`subject_id`, `branch_id`, `subject_code`, `subject_name`, `weekly_hours`, `type`, `year`, `semester`, `created_at`) VALUES
 	(29, 1, 'BCS503', 'Design and Analysis of Algorithm', 6, 'T', 3, 5, '2025-10-06 09:13:48'),
 	(30, 1, 'BCS-052', 'Data Analytics', 4, 'T', 3, 5, '2025-10-06 09:13:48'),
@@ -419,9 +443,9 @@ INSERT INTO `subjects` (`subject_id`, `branch_id`, `subject_code`, `subject_name
 	(148, 1, 'BCS351', 'Data Structures Using C Lab', 4, 'P', 2, 3, '2025-10-06 09:29:51'),
 	(149, 1, 'BCS352', 'Computer Organization Lab', 4, 'P', 2, 3, '2025-10-06 09:29:51'),
 	(150, 1, 'BCS353', 'WEB DESIGNING WORKSHOP', 4, 'T', 2, 3, '2025-10-06 09:29:51'),
-	(151, 1, 'BCC351', 'Mini Project or Internship Assessment', 4, 'P', 4, 7, '2025-10-06 09:29:51'),
+	(151, 1, 'BCC351', 'Mini Project or Internship Assessment', 4, 'P', 2, 3, '2025-10-06 09:29:51'),
 	(152, 1, 'PDP', 'PDP', 2, 'T', 2, 3, '2025-10-06 09:29:51'),
-	(153, 1, 'NUMREAS', 'Numerical & Reasoning', 2, 'T', 2, 4, '2025-10-06 09:29:51'),
+	(153, 1, 'NR_S4', 'Numerical Reasoning', 2, 'T', 2, 4, '2025-10-06 09:29:51'),
 	(154, 1, 'JAVATRAIN', 'JAVA TRAINING', 3, 'T', 4, 7, '2025-10-06 09:29:51'),
 	(155, 1, 'BCS701', 'ARTIFICIAL INTELLIGENCE/DEEP LEARNING', 3, 'T', 4, 7, '2025-10-06 09:29:51'),
 	(156, 1, 'BCS071', 'CLOUD COMPUTING/PRINCIPLES OF GENERATIVE AI', 3, 'T', 4, 7, '2025-10-06 09:29:51'),
@@ -441,7 +465,10 @@ INSERT INTO `subjects` (`subject_id`, `branch_id`, `subject_code`, `subject_name
 	(210, 1, 'BCS331', 'Algorithms', 4, 'T', 3, 1, '2025-11-24 05:23:15'),
 	(211, 1, 'BCS501', 'AI', 4, 'T', 4, 7, '2025-11-24 05:23:15'),
 	(215, 1, 'BME101', 'Mechanical Engineering', 4, 'T', 1, 1, '2025-11-24 07:50:27'),
-	(216, 1, 'NR_S3', 'Numerical Reasoning', 2, 'T', 1, 1, '2025-11-24 08:21:11');
+	(216, 1, 'NR_S3', 'Numerical Reasoning', 2, 'P', 2, 3, '2025-11-24 08:21:11'),
+	(218, 1, 'NR_S5', 'Numerical Reasoning', 2, 'T', 3, 5, '2025-12-06 07:30:32'),
+	(219, 1, 'NR_S6', 'Numerical Reasoning', 2, 'T', 3, 6, '2025-12-06 07:31:11'),
+	(220, 1, 'NR_S7', 'Numerical Reasoning', 2, 'T', 4, 7, '2025-12-06 07:31:36');
 
 -- Dumping structure for table timetable_management.timetable_slots
 CREATE TABLE IF NOT EXISTS `timetable_slots` (
@@ -463,9 +490,81 @@ CREATE TABLE IF NOT EXISTS `timetable_slots` (
   CONSTRAINT `timetable_slots_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE,
   CONSTRAINT `timetable_slots_ibfk_3` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`faculty_id`) ON DELETE CASCADE,
   CONSTRAINT `timetable_slots_ibfk_4` FOREIGN KEY (`room_id`) REFERENCES `rooms` (`room_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=254 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.timetable_slots: ~0 rows (approximately)
+-- Dumping data for table timetable_management.timetable_slots: ~71 rows (approximately)
+INSERT INTO `timetable_slots` (`slot_id`, `section_id`, `subject_id`, `faculty_id`, `room_id`, `day_of_week`, `start_time`, `end_time`, `created_at`) VALUES
+	(183, 23, 143, 22, 6, 'Monday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(184, 23, 149, 42, 6, 'Monday', '09:50:00', '11:30:00', '2025-12-06 08:12:42'),
+	(185, 23, 150, 41, 6, 'Monday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(186, 23, 139, 15, 6, 'Monday', '12:20:00', '13:10:00', '2025-12-06 08:12:42'),
+	(187, 23, 147, 43, 6, 'Monday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(188, 23, 151, 23, 6, 'Monday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(189, 23, 149, 42, 6, 'Tuesday', '09:00:00', '10:40:00', '2025-12-06 08:12:42'),
+	(190, 23, 145, 23, 6, 'Tuesday', '10:40:00', '11:30:00', '2025-12-06 08:12:42'),
+	(191, 23, 139, 15, 6, 'Tuesday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(192, 23, 149, 42, 6, 'Tuesday', '12:20:00', '15:00:00', '2025-12-06 08:12:42'),
+	(193, 23, 151, 23, 6, 'Tuesday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(194, 23, 147, 43, 6, 'Wednesday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(195, 23, 150, 41, 6, 'Wednesday', '09:50:00', '10:40:00', '2025-12-06 08:12:42'),
+	(196, 23, 148, 23, 6, 'Wednesday', '10:40:00', '12:20:00', '2025-12-06 08:12:42'),
+	(197, 23, 143, 22, 6, 'Wednesday', '12:20:00', '13:10:00', '2025-12-06 08:12:42'),
+	(198, 23, 146, 42, 6, 'Wednesday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(199, 23, 147, 43, 6, 'Wednesday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(200, 23, 141, 19, 6, 'Thursday', '09:50:00', '10:40:00', '2025-12-06 08:12:42'),
+	(201, 23, 148, 23, 6, 'Thursday', '10:40:00', '12:20:00', '2025-12-06 08:12:42'),
+	(202, 23, 146, 42, 6, 'Thursday', '12:20:00', '13:10:00', '2025-12-06 08:12:42'),
+	(203, 23, 146, 42, 6, 'Thursday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(204, 23, 139, 15, 6, 'Thursday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(205, 23, 148, 23, 6, 'Friday', '09:00:00', '10:40:00', '2025-12-06 08:12:42'),
+	(206, 23, 216, 44, 6, 'Friday', '11:30:00', '13:10:00', '2025-12-06 08:12:42'),
+	(207, 23, 145, 23, 6, 'Friday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(208, 23, 139, 15, 6, 'Friday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(209, 24, 151, 23, 7, 'Monday', '09:00:00', '10:40:00', '2025-12-06 08:12:42'),
+	(210, 24, 145, 23, 7, 'Monday', '10:40:00', '11:30:00', '2025-12-06 08:12:42'),
+	(211, 24, 148, 23, 7, 'Monday', '12:20:00', '15:00:00', '2025-12-06 08:12:42'),
+	(212, 24, 150, 41, 7, 'Monday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(213, 24, 143, 22, 7, 'Tuesday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(214, 24, 143, 22, 7, 'Tuesday', '09:50:00', '10:40:00', '2025-12-06 08:12:42'),
+	(215, 24, 139, 15, 7, 'Tuesday', '10:40:00', '11:30:00', '2025-12-06 08:12:42'),
+	(216, 24, 149, 42, 7, 'Tuesday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(217, 24, 148, 23, 7, 'Tuesday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(218, 24, 147, 43, 7, 'Tuesday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(219, 24, 151, 23, 7, 'Wednesday', '09:00:00', '10:40:00', '2025-12-06 08:12:42'),
+	(220, 24, 145, 24, 7, 'Wednesday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(221, 24, 216, 44, 7, 'Wednesday', '12:20:00', '15:00:00', '2025-12-06 08:12:42'),
+	(222, 24, 145, 24, 6, 'Thursday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(223, 24, 147, 43, 7, 'Thursday', '09:50:00', '10:40:00', '2025-12-06 08:12:42'),
+	(224, 24, 143, 22, 7, 'Thursday', '10:40:00', '11:30:00', '2025-12-06 08:12:42'),
+	(225, 24, 150, 41, 7, 'Thursday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(226, 24, 147, 43, 7, 'Thursday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(227, 24, 141, 19, 7, 'Friday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(228, 24, 149, 42, 7, 'Friday', '09:50:00', '11:30:00', '2025-12-06 08:12:42'),
+	(229, 24, 150, 41, 7, 'Friday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(230, 24, 149, 42, 7, 'Friday', '14:10:00', '15:50:00', '2025-12-06 08:12:42'),
+	(231, 25, 139, 15, 3, 'Monday', '10:40:00', '11:30:00', '2025-12-06 08:12:42'),
+	(232, 25, 145, 24, 7, 'Monday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(233, 25, 145, 24, 3, 'Monday', '12:20:00', '13:10:00', '2025-12-06 08:12:42'),
+	(234, 25, 139, 15, 3, 'Monday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(235, 25, 141, 19, 3, 'Monday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(236, 25, 147, 43, 3, 'Tuesday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(237, 25, 143, 41, 3, 'Tuesday', '09:50:00', '10:40:00', '2025-12-06 08:12:42'),
+	(238, 25, 147, 43, 3, 'Tuesday', '10:40:00', '11:30:00', '2025-12-06 08:12:42'),
+	(239, 25, 141, 19, 7, 'Tuesday', '12:20:00', '13:10:00', '2025-12-06 08:12:42'),
+	(240, 25, 139, 15, 3, 'Tuesday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(241, 25, 150, 41, 3, 'Tuesday', '15:00:00', '15:50:00', '2025-12-06 08:12:42'),
+	(242, 25, 139, 15, 3, 'Wednesday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(243, 25, 139, 15, 7, 'Wednesday', '10:40:00', '11:30:00', '2025-12-06 08:12:42'),
+	(244, 25, 146, 42, 3, 'Wednesday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(245, 25, 139, 15, 7, 'Thursday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(246, 25, 149, 42, 3, 'Thursday', '09:50:00', '11:30:00', '2025-12-06 08:12:42'),
+	(247, 25, 146, 42, 7, 'Thursday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(248, 25, 145, 24, 3, 'Thursday', '14:10:00', '15:00:00', '2025-12-06 08:12:42'),
+	(249, 25, 150, 41, 3, 'Friday', '09:00:00', '09:50:00', '2025-12-06 08:12:42'),
+	(250, 25, 216, 44, 3, 'Friday', '09:50:00', '11:30:00', '2025-12-06 08:12:42'),
+	(251, 25, 141, 19, 3, 'Friday', '11:30:00', '12:20:00', '2025-12-06 08:12:42'),
+	(252, 25, 147, 43, 7, 'Friday', '12:20:00', '13:10:00', '2025-12-06 08:12:42'),
+	(253, 25, 145, 24, 3, 'Friday', '14:10:00', '15:00:00', '2025-12-06 08:12:42');
 
 -- Dumping structure for table timetable_management.users
 CREATE TABLE IF NOT EXISTS `users` (
@@ -478,7 +577,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Dumping data for table timetable_management.users: ~27 rows (approximately)
 INSERT INTO `users` (`user_id`, `username`, `password`, `role`, `email`, `created_at`) VALUES
@@ -509,7 +608,8 @@ INSERT INTO `users` (`user_id`, `username`, `password`, `role`, `email`, `create
 	(44, 'miss_amreen', '123456', 'faculty', 'amreen@gmail.com', '2025-11-24 08:06:46'),
 	(45, 'versha_verma1', '123456', 'faculty', 'versha@gmail.com', '2025-11-24 08:08:27'),
 	(46, 'mr_sudheer', '123456', 'faculty', 'sudheer@gmail.com', '2025-11-24 08:21:11'),
-	(48, 'test', 'test', 'faculty', 'test@nsd.com', '2025-12-04 09:34:53');
+	(48, 'test', 'test', 'faculty', 'test@nsd.com', '2025-12-04 09:34:53'),
+	(49, 'ps.dixit', '123456', 'faculty', 'ps@abc.com', '2025-12-06 08:08:05');
 
 /*!40103 SET TIME_ZONE=IFNULL(@OLD_TIME_ZONE, 'system') */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
