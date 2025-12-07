@@ -152,6 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_timetable'])
             background-color: white;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
         }
         h1 {
             text-align: center;
@@ -194,6 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_timetable'])
 </head>
 <body>
     <div class="container">
+        <a href="view_timetable.php" class="view-top-right" style="position:absolute;top:12px;right:12px;text-decoration:none;padding:6px 10px;border-radius:4px;background:#007bff;color:#fff;border:1px solid #006ae6;font-size:13px;">View Timetables</a>
         <h1>Generate Timetable</h1>
         <?php if (!empty($errors)): ?>
             <div class="error">
@@ -221,7 +223,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_timetable'])
                     <?php endwhile; ?>
                 </select>
             </div>
-            <button type="submit" name="generate_timetable">Generate Timetable</button>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button type="submit" name="generate_timetable">Generate Timetable</button>
+                <a href="view_timetable.php" style="text-decoration:none;padding:6px 10px;border-radius:4px;background:#eee;color:#333;border:1px solid #ccc;font-size:14px;">View Timetables</a>
+            </div>
         </form>
     </div>
 </body>
