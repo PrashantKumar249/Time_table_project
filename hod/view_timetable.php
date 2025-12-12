@@ -7,7 +7,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'hod') {
     header('Location: login.php');
     exit;
 }
-
+s
 $branch_id = 0;
 $hq = mysqli_query($conn, "SELECT branch_id FROM hod WHERE user_id = " . intval($_SESSION['user_id']) . " LIMIT 1");
 if ($hq && mysqli_num_rows($hq)) { $hr = mysqli_fetch_assoc($hq); $branch_id = intval($hr['branch_id']); }
