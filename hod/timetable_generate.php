@@ -194,9 +194,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_timetable'])
                                     $end2 = $slot_times[$slot + 1]['end'];
                                     $cell_data = ['subject_id' => $sub['subject_id'], 'subject_code' => $sub['subject_code'], 'subject_name' => $sub['subject_name'], 'faculty_id' => $fid, 'faculty' => $finfo['name'], 'room_id' => $rid, 'room' => $rinfo['number'], 'is_lab' => 1];
 
-                                    // Insert both slots
-                                    $ins1 = "INSERT INTO timetable_slots (section_id,subject_id,faculty_id,room_id,day_of_week,start_time,end_time) VALUES (" . intval($section_id) . "," . intval($sub['subject_id']) . "," . intval($fid) . "," . intval($rid) . ",'" . $day . "','" . $start1 . "','" . $slot_times[$slot + 1]['end'] . "')";
+                                    // Insert both slots separately so view can render each slot cell
+                                    $start2 = $slot_times[$slot + 1]['start'];
+                                    $end1 = $slot_times[$slot]['end'];
+                                    $end2 = $slot_times[$slot + 1]['end'];
+                                    $ins1 = "INSERT INTO timetable_slots (section_id,subject_id,faculty_id,room_id,day_of_week,start_time,end_time) VALUES (" . intval($section_id) . "," . intval($sub['subject_id']) . "," . intval($fid) . "," . intval($rid) . ",'" . $day . "','" . $start1 . "','" . $end1 . "')";
                                     if (!mysqli_query($conn, $ins1)) $errors[] = 'Insert error: ' . mysqli_error($conn);
+                                    $ins2 = "INSERT INTO timetable_slots (section_id,subject_id,faculty_id,room_id,day_of_week,start_time,end_time) VALUES (" . intval($section_id) . "," . intval($sub['subject_id']) . "," . intval($fid) . "," . intval($rid) . ",'" . $day . "','" . $start2 . "','" . $end2 . "')";
+                                    if (!mysqli_query($conn, $ins2)) $errors[] = 'Insert error: ' . mysqli_error($conn);
 
                                     $timetable[$day][$slot] = $cell_data;
                                     $timetable[$day][$slot + 1] = $cell_data;

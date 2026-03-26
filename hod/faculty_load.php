@@ -143,6 +143,70 @@ if ($summary_res) {
         $faculty_summary[] = $r;
     }
 }
+// -- Instead of using planned load details, compute actual loads from generated timetable slots
+// Aggregate per-faculty minutes and slots from timetable_slots
+$timetable_summary = [];
+$tsq = "SELECT f.faculty_id, f.faculty_name,
+    COALESCE(SUM(CASE WHEN s.type='T' THEN TIME_TO_SEC(TIMEDIFF(ts.end_time,ts.start_time))/60 ELSE 0 END),0) AS theory_minutes,
+    COALESCE(SUM(CASE WHEN s.type='P' THEN TIME_TO_SEC(TIMEDIFF(ts.end_time,ts.start_time))/60 ELSE 0 END),0) AS lab_minutes,
+    COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(ts.end_time,ts.start_time))/60),0) AS total_minutes,
+    COALESCE(SUM(CASE WHEN s.type='T' THEN 1 ELSE 0 END),0) AS theory_slots,
+    COALESCE(SUM(CASE WHEN s.type='P' THEN 1 ELSE 0 END),0) AS lab_slots
+    FROM timetable_slots ts
+    JOIN faculty f ON ts.faculty_id=f.faculty_id
+    LEFT JOIN subjects s ON ts.subject_id=s.subject_id
+    WHERE f.branch_id = " . intval($branch_id) . "
+    GROUP BY f.faculty_id
+    ORDER BY f.faculty_name";
+$tsr = mysqli_query($conn, $tsq);
+if ($tsr) {
+    while ($trr = mysqli_fetch_assoc($tsr)) {
+        // Convert minutes into 50-minute-slot-equivalents for display (approximate)
+        $theory_slots_est = round($trr['theory_minutes'] / 50, 2);
+        $lab_slots_est = round($trr['lab_minutes'] / 50, 2);
+        $total_slots_est = round($trr['total_minutes'] / 50, 2);
+        $timetable_summary[] = [
+            'faculty_id' => $trr['faculty_id'],
+            'faculty_name' => $trr['faculty_name'],
+            'desig' => 'Asst. Prof.',
+            'total_l' => $theory_slots_est,
+            'total_p' => $lab_slots_est,
+            'total_load' => $total_slots_est,
+            'theory_minutes' => $trr['theory_minutes'],
+            'lab_minutes' => $trr['lab_minutes'],
+            'total_minutes' => $trr['total_minutes'],
+            'theory_slots' => intval($trr['theory_slots']),
+            'lab_slots' => intval($trr['lab_slots'])
+        ];
+    }
+}
+
+// Per-faculty per-section breakdown from timetable
+$timetable_grouped = [];
+$psq = "SELECT f.faculty_id, sec.section_id, sec.section_name, sec.year, s.subject_code, s.type,
+    COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(ts.end_time,ts.start_time))/60),0) AS minutes,
+    COALESCE(SUM(CASE WHEN s.type='T' THEN 1 ELSE 0 END),0) AS theory_slots,
+    COALESCE(SUM(CASE WHEN s.type='P' THEN 1 ELSE 0 END),0) AS lab_slots
+    FROM timetable_slots ts
+    JOIN faculty f ON ts.faculty_id=f.faculty_id
+    JOIN sections sec ON ts.section_id=sec.section_id
+    LEFT JOIN subjects s ON ts.subject_id=s.subject_id
+    WHERE f.branch_id = " . intval($branch_id) . "
+    GROUP BY f.faculty_id, sec.section_id, s.subject_id
+    ORDER BY f.faculty_id, sec.year, sec.section_name";
+$psr = mysqli_query($conn, $psq);
+if ($psr) {
+    while ($pr = mysqli_fetch_assoc($psr)) {
+        $fid = intval($pr['faculty_id']);
+        if (!isset($timetable_grouped[$fid])) $timetable_grouped[$fid] = [];
+        $timetable_grouped[$fid][] = $pr;
+    }
+}
+
+// Use timetable summary (if available) as primary summary
+if (!empty($timetable_summary)) {
+    $faculty_summary = $timetable_summary;
+}
 ?>
 <style>
 body {
@@ -329,6 +393,7 @@ footer {
                             <th>Total Load</th>
                             <th>Years</th>
                             <th>Sections</th>
+                            <th>Section Loads</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -337,91 +402,107 @@ footer {
                                 <td><?php echo $idx++; ?></td>
                                 <td><?php echo htmlspecialchars($fs['faculty_name']); ?></td>
                                 <td><?php echo htmlspecialchars($fs['desig']); ?></td>
-                                <td><?php echo intval($fs['total_l']); ?></td>
-                                <td><?php echo intval($fs['total_p']); ?></td>
-                                <td><?php echo intval($fs['total_load']); ?></td>
-                                <td><?php echo $fs['years'] ? htmlspecialchars($fs['years']) : '-'; ?></td>
-                                <td><?php echo $fs['sections'] ? htmlspecialchars($fs['sections']) : '-'; ?></td>
+                                <td><?php echo isset($fs['total_l']) ? htmlspecialchars($fs['total_l']) : '-'; ?></td>
+                                <td><?php echo isset($fs['total_p']) ? htmlspecialchars($fs['total_p']) : '-'; ?></td>
+                                <td><?php echo isset($fs['total_load']) ? htmlspecialchars($fs['total_load']) : '-'; ?></td>
+                                <td><?php echo isset($fs['years']) ? htmlspecialchars($fs['years']) : '-'; ?></td>
+                                <td><?php echo isset($fs['sections']) ? htmlspecialchars($fs['sections']) : '-'; ?></td>
+                                <td>
+                                    <?php
+                                    $fid = intval($fs['faculty_id']);
+                                    if (!empty($timetable_grouped[$fid])) {
+                                        $parts = [];
+                                        foreach ($timetable_grouped[$fid] as $b) {
+                                            $sec = htmlspecialchars($b['section_name']);
+                                            $yr = intval($b['year']);
+                                            $type = htmlspecialchars($b['type'] ?: '-');
+                                            $sub = htmlspecialchars($b['subject_code'] ?: '-');
+                                            $mins = intval($b['minutes']);
+                                            $theory_slots = intval($b['theory_slots']);
+                                            $lab_slots = intval($b['lab_slots']);
+                                            $slots_equiv = round($mins / 50, 2);
+                                            $parts[] = "Y$yr S$sec ($sub, $type, Slots:$slots_equiv)";
+                                        }
+                                        echo implode('; ', $parts);
+                                    } else {
+                                        echo '-';
+                                    }
+                                    ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
             <?php endif; ?>
         <h3 class="section-title">LOAD CHART</h3>
-        <?php if (empty($load_data)): ?>
-            <div class="no-data-message">
-                No teaching load data available.
-            </div>
+        <?php if (empty($timetable_grouped) && empty($grouped_data)): ?>
+            <div class="no-data-message">No teaching load data available.</div>
         <?php else: ?>
-            <table class="load-table">
-                <thead>
-                    <tr class="header-row">
-                        <td colspan="13" style="text-align: center; font-size: 1.2em;"><?php echo htmlspecialchars($hod_data['college_name'] ? $hod_data['college_name'] : 'AMBALIKA INSTITUTE OF MANAGEMENT & TECHNOLOGY'); ?></td>
-                    </tr>
-                    <tr class="header-row">
-                        <td colspan="13" style="text-align: center;">TEACHING LOAD DEPARTMENT - <?php echo strtoupper($hod_data['branch_name']); ?></td>
-                    </tr>
-                    <tr>
-                        <th>S.No.</th>
-                        <th>NAME OF FACULTY</th>
-                        <th>DESIG.</th>
-                        <th>YEAR</th>
-                        <th>SECTION</th>
-                        <th>BRANCH</th>
-                        <th>SUB. CODE</th>
-                        <th>THEORY / LAB</th>
-                        <th>L</th>
-                        <th>P</th>
-                        <th>Theory Load</th>
-                        <th>Lab Load</th>
-                        <th>TOTAL LOAD</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php $faculty_sno = 1; ?>
-                    <?php foreach ($grouped_data as $faculty_name => $group): ?>
-                        <?php $rows = $group['rows']; ?>
-                        <?php $rowspan = $group['rowspan']; ?>
-                        <?php $local_sno = 1; ?>
-                        <?php for ($i = 0; $i < count($rows); $i++): ?>
-                            <?php $row = $rows[$i]; ?>
-                            <?php if ($i == 0): ?>
-                                <tr>
-                                    <td rowspan="<?php echo $rowspan; ?>"><?php echo $local_sno++; ?></td>
-                                    <td rowspan="<?php echo $rowspan; ?>"><?php echo htmlspecialchars($row['faculty_name']); ?></td>
-                                    <td rowspan="<?php echo $rowspan; ?>"><?php echo htmlspecialchars($row['desig']); ?></td>
-                                    <td><?php echo $row['year']; ?></td>
-                                    <td><?php echo htmlspecialchars($row['section']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['branch']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['subject_code']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['theory_lab']); ?></td>
-                                    <td><?php echo $row['l']; ?></td>
-                                    <td><?php echo $row['p']; ?></td>
-                                    <td><?php echo $row['theory_load']; ?></td>
-                                    <td><?php echo $row['lab_load']; ?></td>
-                                    <td><?php echo $row['total_load']; ?></td>
-                                </tr>
+            <?php foreach ($faculty_summary as $fs): ?>
+                <?php $fid = intval($fs['faculty_id']); $fname = $fs['faculty_name']; ?>
+                <div style="margin-bottom:1.5rem; padding:1rem; border:1px solid #e5e7eb; border-radius:8px; background:#ffffff;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <div>
+                            <div style="font-weight:700;font-size:1.05rem;"><?php echo htmlspecialchars($fname); ?></div>
+                            <div style="color:#6b7280;font-size:0.9rem;"><?php echo htmlspecialchars($fs['desig']); ?></div>
+                        </div>
+                        <div style="text-align:right">
+                            <div style="font-weight:700;color:#111827">Total L: <?php echo isset($fs['total_l']) ? htmlspecialchars($fs['total_l']) : 0; ?> &nbsp;|&nbsp; Total P: <?php echo isset($fs['total_p']) ? htmlspecialchars($fs['total_p']) : 0; ?></div>
+                            <div style="color:#6b7280">Total Load: <?php echo isset($fs['total_load']) ? htmlspecialchars($fs['total_load']) : 0; ?></div>
+                        </div>
+                    </div>
+
+                    <table class="load-table" style="margin-top:8px;">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>Section</th>
+                                <th>Branch</th>
+                                <th>Subject Code</th>
+                                <th>Theory / Lab</th>
+                                <th>L</th>
+                                <th>P</th>
+                                <th>Theory Load</th>
+                                <th>Lab Load</th>
+                                <th>Total Load</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (!empty($timetable_grouped[$fid])): ?>
+                                <?php foreach ($timetable_grouped[$fid] as $r): ?>
+                                    <?php
+                                        $yr = intval($r['year']);
+                                        $sec = htmlspecialchars($r['section_name']);
+                                        $branch_val = '-';
+                                        $sub = htmlspecialchars($r['subject_code'] ?: '-');
+                                        $type = htmlspecialchars($r['type'] ?: '-');
+                                        $mins = intval($r['minutes']);
+                                        $l_slots = intval($r['theory_slots']);
+                                        $p_slots = intval($r['lab_slots']);
+                                        $theory_load = $type === 'T' ? round($mins / 50, 2) : 0;
+                                        $lab_load = $type === 'P' ? round($mins / 50, 2) : 0;
+                                        $total_load = round($mins / 50, 2);
+                                    ?>
+                                    <tr>
+                                        <td><?php echo $yr; ?></td>
+                                        <td><?php echo $sec; ?></td>
+                                        <td><?php echo $branch_val; ?></td>
+                                        <td><?php echo $sub; ?></td>
+                                        <td><?php echo $type; ?></td>
+                                        <td><?php echo $l_slots; ?></td>
+                                        <td><?php echo $p_slots; ?></td>
+                                        <td><?php echo $theory_load; ?></td>
+                                        <td><?php echo $lab_load; ?></td>
+                                        <td><?php echo $total_load; ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
                             <?php else: ?>
-                                <tr>
-                                    <td><?php echo $local_sno++; ?></td>
-                                    <td></td>
-                                    <td></td>
-                                    <td><?php echo $row['year']; ?></td>
-                                    <td><?php echo htmlspecialchars($row['section']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['branch']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['subject_code']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['theory_lab']); ?></td>
-                                    <td><?php echo $row['l']; ?></td>
-                                    <td><?php echo $row['p']; ?></td>
-                                    <td><?php echo $row['theory_load']; ?></td>
-                                    <td><?php echo $row['lab_load']; ?></td>
-                                    <td><?php echo $row['total_load']; ?></td>
-                                </tr>
+                                <tr><td colspan="10" class="no-data-message">No detailed load entries for this faculty.</td></tr>
                             <?php endif; ?>
-                        <?php endfor; ?>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach; ?>
         <?php endif; ?>
     </section>
 </div>

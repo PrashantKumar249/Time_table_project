@@ -7,7 +7,7 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['role'] ?? '') !== 'hod') {
     header('Location: login.php');
     exit;
 }
-s
+
 $branch_id = 0;
 $hq = mysqli_query($conn, "SELECT branch_id FROM hod WHERE user_id = " . intval($_SESSION['user_id']) . " LIMIT 1");
 if ($hq && mysqli_num_rows($hq)) { $hr = mysqli_fetch_assoc($hq); $branch_id = intval($hr['branch_id']); }
@@ -98,17 +98,22 @@ function fmt_time($t){ return date('H:i', strtotime($t)); }
                 ORDER BY FIELD(ts.day_of_week,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'), ts.start_time";
         $tr = mysqli_query($conn, $tsq);
         $slots = [];
-        $times = [];
+        $time_points = []; // collect all start and end times
         while ($row = mysqli_fetch_assoc($tr)) {
             $d = $row['day_of_week'];
-            $st = $row['start_time'];
-            $times[$st] = true;
             if (!isset($slots[$d])) $slots[$d] = [];
-            $slots[$d][$st] = $row;
+            $slots[$d][] = $row;
+            // collect time points
+            $time_points[$row['start_time']] = true;
+            $time_points[$row['end_time']] = true;
         }
-        // sort times
-        $time_rows = array_keys($times);
-        sort($time_rows);
+        // build sorted time points and intervals
+        $tp = array_keys($time_points);
+        sort($tp);
+        $time_rows = [];
+        for ($i = 0; $i < count($tp) - 1; $i++) {
+            $time_rows[] = ['start' => $tp[$i], 'end' => $tp[$i+1], 'label' => fmt_time($tp[$i]) . '-' . fmt_time($tp[$i+1])];
+        }
     ?>
         <div class="section-area">
             <div class="section-title">
@@ -127,15 +132,23 @@ function fmt_time($t){ return date('H:i', strtotime($t)); }
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($time_rows as $start): ?>
+                        <?php foreach ($time_rows as $interval): ?>
                             <tr>
-                                <td class="time-col"><?php echo fmt_time($start); ?></td>
+                                <td class="time-col"><?php echo htmlspecialchars($interval['label']); ?></td>
                                 <?php foreach ($days as $d):
-                                    $cell = $slots[$d][$start] ?? null;
+                                    $cell = null;
+                                    if (!empty($slots[$d])) {
+                                        foreach ($slots[$d] as $r) {
+                                            // overlap check: row.start < interval.end AND row.end > interval.start
+                                            if (strtotime($r['start_time']) < strtotime($interval['end']) && strtotime($r['end_time']) > strtotime($interval['start'])) {
+                                                $cell = $r; break;
+                                            }
+                                        }
+                                    }
                                     if (!$cell) { echo '<td class="empty-cell">-</td>'; continue; }
                                     $is_lab = (isset($cell['is_lab']) && $cell['is_lab']);
                                     $cls = $is_lab ? 'lab' : 'theory';
-                                    $subject = htmlspecialchars($cell['subject_code'].' - '.$cell['subject_name']);
+                                    $subject = htmlspecialchars(($cell['subject_code'] ?? '') . ' - ' . ($cell['subject_name'] ?? ''));
                                     $faculty = htmlspecialchars($cell['faculty_name'] ?? '');
                                     $room = htmlspecialchars($cell['room_number'] ?? '');
                                     echo "<td class='".$cls."'><div style='font-weight:700;'>$subject</div><div class='small'>". $faculty ."</div><div class='small'>Room: ".$room."</div></td>";
