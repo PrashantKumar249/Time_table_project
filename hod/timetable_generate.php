@@ -285,8 +285,9 @@ else { $cq2 = mysqli_query($conn, "SELECT faculty_id,faculty_name FROM faculty W
     <title>Generate Timetable</title>
     <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; }
-    .container { max-width: 1400px; margin: 0 auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 30px; position: relative; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }
+    .page-container { padding: 30px 20px; min-height: calc(100vh - 80px); }
+    .container { max-width: 1400px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 35px 40px; position: relative; }
     .header { margin-bottom: 30px; border-bottom: 3px solid #2c3e50; padding-bottom: 15px; }
     .header h1 { color: #2c3e50; font-size: 28px; }
     .header p { color: #7f8c8d; margin-top: 5px; font-size: 14px; }
@@ -318,6 +319,7 @@ else { $cq2 = mysqli_query($conn, "SELECT faculty_id,faculty_name FROM faculty W
     </style>
 </head>
 <body>
+<div class="page-container">
 <div class="container">
     <a href="view_timetable.php" class="view-top-right" style="position:absolute;top:18px;right:18px;text-decoration:none;padding:8px 12px;border-radius:6px;background:#007bff;color:#fff;border:1px solid #006ae6;font-size:13px;font-weight:600;">View Timetables</a>
     <div class="header">
@@ -551,5 +553,9 @@ document.getElementById('year').addEventListener('change', function() {
 document.getElementById('semester').addEventListener('change', populateSections);
 </script>
 
+</div>
+</div>
+
+<?php include 'footer.php'; ?>
 </body>
 </html>

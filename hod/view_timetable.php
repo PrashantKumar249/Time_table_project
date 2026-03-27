@@ -34,22 +34,30 @@ function fmt_time($t){ return date('H:i', strtotime($t)); }
     <meta charset="utf-8">
     <title>View Timetables</title>
     <style>
-    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;margin:20px}
-    .box{max-width:1200px;margin:0 auto;background:#fff;padding:18px;border-radius:8px}
-    .controls{display:flex;gap:10px;align-items:center;margin-bottom:14px}
-    select,input[type=submit]{padding:8px;border-radius:6px;border:1px solid #ccc}
-    .section-title{margin-top:18px;padding:10px 12px;background:#2c3e50;color:#fff;border-radius:6px;display:flex;justify-content:space-between;align-items:center}
-    .timetable{width:100%;border-collapse:collapse;margin-top:8px}
-    .timetable th{background:#34495e;color:#fff;padding:10px;border:1px solid #ccc}
-    .timetable td{border:1px solid #ddd;padding:8px;vertical-align:top;height:70px}
-    .time-col{background:#ecf0f1;font-weight:700;width:80px}
-    .lab{background:#fff3cd}
-    .theory{background:#e8f4f8}
-    .small{font-size:12px;color:#555}
-    .badge{background:#f39c12;color:#fff;padding:4px 8px;border-radius:4px}
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }
+    .page-container { padding: 30px 20px; min-height: calc(100vh - 80px); }
+    .box { max-width: 1300px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .controls { display: flex; gap: 15px; align-items: center; margin-bottom: 25px; background: #f8fafc; padding: 15px 20px; border-radius: 8px; border: 1px solid #e2e8f0; flex-wrap: wrap; }
+    .controls label { font-weight: 600; color: #475569; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+    select, input[type=submit] { padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; outline: none; transition: border-color 0.2s; }
+    select:focus { border-color: #3b82f6; }
+    .section-title { margin-top: 30px; padding: 15px 20px; background: #1e293b; color: #fff; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 600; }
+    .timetable { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 30px; background: #fff; box-shadow: 0 0 0 1px #e2e8f0; border-radius: 0 0 8px 8px; overflow: hidden; }
+    .timetable th { background: #f1f5f9; color: #334155; padding: 12px; border: 1px solid #e2e8f0; text-transform: uppercase; font-size: 13px; font-weight: 700; border-top: none; }
+    .timetable td { border: 1px solid #e2e8f0; padding: 12px; vertical-align: top; height: 90px; transition: background 0.2s; }
+    .timetable td:hover { background: #f8fafc; }
+    .time-col { background: #f8fafc; font-weight: 700; width: 110px; color: #475569; text-align: center; vertical-align: middle !important; }
+    .lab { background: #fffbeb; border-left: 4px solid #f59e0b; }
+    .theory { background: #f0fdf4; border-left: 4px solid #22c55e; }
+    .empty-cell { background: #fafafa; color: #94a3b8; text-align: center; vertical-align: middle !important; }
+    .small { font-size: 12px; color: #64748b; margin-top: 5px; }
+    .subject-title { font-weight: 700; color: #1e293b; font-size: 14px; margin-bottom: 4px; }
+    .badge { background: #f59e0b; color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; }
+    h2 { color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 24px; font-weight: 700; }
     </style>
 </head>
 <body>
+<div class="page-container">
 <div class="box">
     <h2>View Timetables for Sections</h2>
     <form method="get" class="controls">
@@ -151,7 +159,7 @@ function fmt_time($t){ return date('H:i', strtotime($t)); }
                                     $subject = htmlspecialchars(($cell['subject_code'] ?? '') . ' - ' . ($cell['subject_name'] ?? ''));
                                     $faculty = htmlspecialchars($cell['faculty_name'] ?? '');
                                     $room = htmlspecialchars($cell['room_number'] ?? '');
-                                    echo "<td class='".$cls."'><div style='font-weight:700;'>$subject</div><div class='small'>". $faculty ."</div><div class='small'>Room: ".$room."</div></td>";
+                                    echo "<td class='".$cls."'><div class='subject-title'>$subject</div><div class='small'>". $faculty ."</div><div class='small'><b>Room:</b> ".$room."</div></td>";
                                 endforeach; ?>
                             </tr>
                         <?php endforeach; ?>
@@ -162,5 +170,8 @@ function fmt_time($t){ return date('H:i', strtotime($t)); }
     <?php endforeach; ?>
 
 </div>
+</div>
+
+<?php include 'footer.php'; ?>
 </body>
 </html>

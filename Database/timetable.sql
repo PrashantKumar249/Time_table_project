@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `branches` (
   UNIQUE KEY `branch_name` (`branch_name`)
 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.branches: ~18 rows (approximately)
+-- Dumping data for table timetable_management.branches: ~19 rows (approximately)
 INSERT INTO `branches` (`branch_id`, `branch_name`, `created_at`) VALUES
 	(1, 'Computer Science & Engineering', '2025-09-25 14:31:59'),
 	(2, 'Mechanical Engineering', '2025-09-25 14:31:59'),
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS `faculty` (
   CONSTRAINT `faculty_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.faculty: ~26 rows (approximately)
+-- Dumping data for table timetable_management.faculty: ~27 rows (approximately)
 INSERT INTO `faculty` (`faculty_id`, `user_id`, `branch_id`, `faculty_name`, `email`, `created_by`, `created_at`, `password`, `is_coordinator`) VALUES
 	(15, 15, 1, 'MR.UMAKANT PANDEY', 'mr.umakant.pandey@example.com', 1, '2025-10-06 09:34:13', '123456', 0),
 	(16, 16, 1, 'DR.BIRENDRA SINGH', 'dr.birendra.singh@example.com', 1, '2025-10-06 09:34:13', 'DR.BIRENDRA SINGH', 0),
@@ -228,7 +228,7 @@ CREATE TABLE IF NOT EXISTS `faculty_subjects` (
   CONSTRAINT `faculty_subjects_ibfk_1` FOREIGN KEY (`faculty_id`) REFERENCES `faculty` (`faculty_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=90 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.faculty_subjects: ~30 rows (approximately)
+-- Dumping data for table timetable_management.faculty_subjects: ~34 rows (approximately)
 INSERT INTO `faculty_subjects` (`faculty_subject_id`, `faculty_id`, `subject_id`, `created_at`) VALUES
 	(36, 15, 139, '2025-10-06 09:34:13'),
 	(37, 16, 139, '2025-10-06 09:34:13'),
@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS `hod` (
   CONSTRAINT `hod_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.hod: ~1 rows (approximately)
+-- Dumping data for table timetable_management.hod: ~2 rows (approximately)
 INSERT INTO `hod` (`hod_id`, `user_id`, `branch_id`, `hod_name`, `email`, `created_by`, `created_at`, `college_name`, `address`, `college_logo`) VALUES
 	(1, 1, 1, 'Alok Mishra', 'hod_cs1@example.com', 1, '2025-09-25 14:31:59', 'Ambalika Institute Of Management & Technology', 'Lucknow, Uttar Pradesh', 'AIMT.jpg'),
 	(8, 1, 1, 'Test HOD', 'test@example.com', 1, '2025-11-23 10:33:15', NULL, NULL, NULL);
@@ -349,7 +349,7 @@ CREATE TABLE IF NOT EXISTS `section_subjects` (
   CONSTRAINT `section_subjects_ibfk_2` FOREIGN KEY (`subject_id`) REFERENCES `subjects` (`subject_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Dumping data for table timetable_management.section_subjects: ~12 rows (approximately)
+-- Dumping data for table timetable_management.section_subjects: ~24 rows (approximately)
 INSERT INTO `section_subjects` (`allocation_id`, `section_id`, `subject_id`, `created_at`) VALUES
 	(143, 23, 146, '2025-12-08 08:45:03'),
 	(144, 23, 149, '2025-12-08 08:45:03'),
