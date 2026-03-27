@@ -17,6 +17,22 @@ if ($hod_branch_result && mysqli_num_rows($hod_branch_result) > 0) {
         $hod_branch_id = $hod_branch['branch_id'];
     }
 }
+// Handle Delete Subject
+if (isset($_GET['delete_id'])) {
+    $delete_id = intval($_GET['delete_id']);
+    // Verify it belongs to the HOD's branch
+    $del_check = mysqli_query($conn, "SELECT subject_id FROM subjects WHERE subject_id = $delete_id AND branch_id = $hod_branch_id");
+    if (mysqli_num_rows($del_check) > 0) {
+        if (mysqli_query($conn, "DELETE FROM subjects WHERE subject_id = $delete_id")) {
+            $success_subject = "Subject deleted successfully!";
+        } else {
+            $error_subject = "Error deleting subject: " . mysqli_error($conn);
+        }
+    } else {
+        $error_subject = "Invalid subject or permission denied.";
+    }
+}
+
 // Handle Add Subject
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_subject'])) {
     $branch_id = intval($_POST['branch_id']) ?: $hod_branch_id;
@@ -112,6 +128,10 @@ $semesters = [1,2,3,4,5,6,7,8];
         .btn-edit { display: inline-flex; align-items: center; background: #f59e0b; color: white; padding: 0.5rem 0.75rem; border-radius: 4px; text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: background 0.2s; }
         .btn-edit:hover { background: #d97706; }
         .btn-edit i { margin-right: 0.25rem; }
+        /* Delete Button Style */
+        .btn-delete { display: inline-flex; align-items: center; background: #ef4444; color: white; padding: 0.5rem 0.75rem; border-radius: 4px; text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: background 0.2s; margin-left: 0.5rem; }
+        .btn-delete:hover { background: #dc2626; }
+        .btn-delete i { margin-right: 0.25rem; }
         /* Pagination Styles */
         .pagination { margin-top: 1rem; text-align: center; }
         .pagination a, .pagination span { display: inline-block; margin: 0 2px; padding: 0.5rem 0.75rem; text-decoration: none; border-radius: 4px; font-weight: 500; transition: background 0.2s; }
@@ -233,6 +253,9 @@ $semesters = [1,2,3,4,5,6,7,8];
                             <td>
                                 <a href="edit_subject.php?subject_id=<?php echo $sub['subject_id']; ?>" class="btn-edit" title="Edit Subject">
                                     <i class="fas fa-edit"></i> Edit
+                                </a>
+                                <a href="?delete_id=<?php echo $sub['subject_id']; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?><?php echo $page > 1 ? '&page=' . $page : ''; ?>" class="btn-delete" title="Delete Subject" onclick="return confirm('Are you sure you want to delete this subject? This action cannot be undone.');">
+                                    <i class="fas fa-trash"></i> Delete
                                 </a>
                             </td>
                         </tr>
