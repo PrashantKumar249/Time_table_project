@@ -87,11 +87,12 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_faculty'])) {
     $username = mysqli_real_escape_string($conn, trim($_POST['username']));
     $password = mysqli_real_escape_string($conn, trim($_POST['password']));
-    $faculty_name = $username; // Set faculty_name to username since field is removed
+    $faculty_name = mysqli_real_escape_string($conn, trim($_POST['faculty_name']));
+    if (empty($faculty_name)) $faculty_name = $username; // fallback
     $email = mysqli_real_escape_string($conn, trim($_POST['email']));
     $is_coordinator = isset($_POST['is_coordinator']) ? 1 : 0;
   
-    if (empty($username) || empty($password) || empty($email)) {
+    if (empty($username) || empty($password) || empty($email) || empty($faculty_name)) {
         $errors[] = 'All basic fields are required';
     } else {
         // Check if username or email exists
@@ -250,10 +251,14 @@ foreach ($faculty_list_raw as $fac) {
                         <input type="text" id="username" name="username" required class="input-field">
                     </div>
                     <div class="form-group">
+                        <label for="faculty_name"><i class="fas fa-id-badge"></i> Faculty Name</label>
+                        <input type="text" id="faculty_name" name="faculty_name" required class="input-field" placeholder="Full name of faculty">
+                    </div>
+                    <div class="form-group">
                         <label for="password"><i class="fas fa-lock"></i> Password</label>
                         <input type="password" id="password" name="password" required class="input-field">
                     </div>
-                    <div class="form-group" style="grid-column: span 2;">
+                    <div class="form-group">
                         <label for="email"><i class="fas fa-envelope"></i> Email</label>
                         <input type="email" id="email" name="email" required class="input-field">
                     </div>

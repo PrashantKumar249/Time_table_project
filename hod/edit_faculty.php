@@ -17,6 +17,15 @@ if (!$result || mysqli_num_rows($result) == 0) {
 $hod_data = mysqli_fetch_assoc($result);
 $branch_id = $hod_data['branch_id'];
 
+// Fetch subjects for the branch for dropdown (same as faculty_management.php)
+$subjects_dd_query = "SELECT subject_id, CONCAT(subject_code, ' - ', subject_name, ' (Year ', year, ', Sem ', semester, ')') AS display_name
+                      FROM subjects WHERE branch_id = $branch_id ORDER BY year, semester, subject_code";
+$subjects_dd_result = mysqli_query($conn, $subjects_dd_query);
+$subjects_options = [];
+while ($row = mysqli_fetch_assoc($subjects_dd_result)) {
+    $subjects_options[] = $row;
+}
+
 // Get faculty_id from URL
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: faculty_management.php');
@@ -36,15 +45,12 @@ if (!$faculty_result || mysqli_num_rows($faculty_result) == 0) {
 }
 $faculty_data = mysqli_fetch_assoc($faculty_result);
 
-// Fetch existing subjects for this faculty
-$subjects_query = "SELECT s.subject_code, s.subject_name, s.weekly_hours
-                   FROM subjects s
-                   JOIN faculty_subjects fs ON s.subject_id = fs.subject_id
-                   WHERE fs.faculty_id = $faculty_id";
-$subjects_result = mysqli_query($conn, $subjects_query);
-$existing_subjects = [];
-while ($row = mysqli_fetch_assoc($subjects_result)) {
-    $existing_subjects[] = $row;
+// Fetch existing assigned subject_ids for this faculty (for pre-selection)
+$existing_query = "SELECT fs.subject_id FROM faculty_subjects fs WHERE fs.faculty_id = $faculty_id";
+$existing_result = mysqli_query($conn, $existing_query);
+$existing_subject_ids = [];
+while ($row = mysqli_fetch_assoc($existing_result)) {
+    $existing_subject_ids[] = $row['subject_id'];
 }
 
 // Handle form submissions
@@ -56,10 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_faculty'])) {
     $username = mysqli_real_escape_string($conn, $_POST['username']);
     $new_password = !empty($_POST['password']) ? mysqli_real_escape_string($conn, $_POST['password']) : $faculty_data['password'];
     $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $faculty_name = mysqli_real_escape_string($conn, trim($_POST['faculty_name']));
+    if (empty($faculty_name)) $faculty_name = $username; // fallback
     $is_coordinator = isset($_POST['is_coordinator']) ? 1 : 0;
     
-    if (empty($username) || empty($email)) {
-        $errors[] = 'Username and email are required';
+    if (empty($username) || empty($email) || empty($faculty_name)) {
+        $errors[] = 'Username, Faculty Name and email are required';
     } else {
         // Check if username or email exists for other users
         $check_query = "SELECT user_id FROM users WHERE (username = '$username' OR email = '$email') AND user_id != " . $faculty_data['user_id'];
@@ -72,48 +80,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_faculty'])) {
             $user_query = "UPDATE users SET username = '$username'$password_update WHERE user_id = " . $faculty_data['user_id'];
             if (mysqli_query($conn, $user_query)) {
                 // Update faculty
-                $faculty_name = $username; // Set faculty_name to username
                 $faculty_update = "UPDATE faculty SET faculty_name = '$faculty_name', email = '$email', is_coordinator = $is_coordinator WHERE faculty_id = $faculty_id";
                 if (mysqli_query($conn, $faculty_update)) {
                     // Handle subjects - first delete existing links
                     mysqli_query($conn, "DELETE FROM faculty_subjects WHERE faculty_id = $faculty_id");
                     
-                    // Add new subjects
+                    // Add new subjects using subject_id[] (same as add faculty)
                     $subjects_added = 0;
-                    if (isset($_POST['subject_code']) && is_array($_POST['subject_code'])) {
-                        foreach ($_POST['subject_code'] as $index => $subject_code) {
-                            $subject_code = mysqli_real_escape_string($conn, trim($subject_code));
-                            $subject_name = mysqli_real_escape_string($conn, trim($_POST['subject_name'][$index]));
-                            $weekly_hours = (int)$_POST['weekly_hours'][$index];
-                            
-                            if (empty($subject_code) || empty($subject_name) || $weekly_hours <= 0) {
-                                continue; // Skip invalid subjects
-                            }
-                            
-                            // Check if subject exists
-                            $check_sub_query = "SELECT subject_id FROM subjects WHERE subject_code = '$subject_code'";
-                            $check_sub_result = mysqli_query($conn, $check_sub_query);
-                            if (mysqli_num_rows($check_sub_result) == 0) {
-                                // Insert new subject
-                                $sub_insert = "INSERT INTO subjects (branch_id, subject_code, subject_name, weekly_hours) 
-                                               VALUES ($branch_id, '$subject_code', '$subject_name', $weekly_hours)";
-                                if (mysqli_query($conn, $sub_insert)) {
-                                    $subject_id = mysqli_insert_id($conn);
-                                } else {
-                                    $errors[] = 'Error creating subject ' . $subject_code . ': ' . mysqli_error($conn);
-                                    continue;
+                    if (isset($_POST['subject_id']) && is_array($_POST['subject_id'])) {
+                        foreach ($_POST['subject_id'] as $subject_id_val) {
+                            $subject_id_val = (int)$subject_id_val;
+                            if ($subject_id_val > 0) {
+                                // Verify subject belongs to branch
+                                $verify_query = "SELECT subject_id FROM subjects WHERE subject_id = $subject_id_val AND branch_id = $branch_id";
+                                $verify_result = mysqli_query($conn, $verify_query);
+                                if (mysqli_num_rows($verify_result) > 0) {
+                                    $insert_query = "INSERT IGNORE INTO faculty_subjects (faculty_id, subject_id) VALUES ($faculty_id, $subject_id_val)";
+                                    if (mysqli_query($conn, $insert_query)) {
+                                        $subjects_added++;
+                                    }
                                 }
-                            } else {
-                                $sub_row = mysqli_fetch_assoc($check_sub_result);
-                                $subject_id = $sub_row['subject_id'];
-                            }
-                            
-                            // Link to faculty
-                            $link_query = "INSERT IGNORE INTO faculty_subjects (faculty_id, subject_id) VALUES ($faculty_id, $subject_id)";
-                            if (mysqli_query($conn, $link_query)) {
-                                $subjects_added++;
-                            } else {
-                                $errors[] = 'Error linking subject ' . $subject_code . ' to faculty';
                             }
                         }
                     }
@@ -292,6 +278,20 @@ body {
 .remove-subject:hover {
     background-color: #dc2626;
 }
+.remove-subject-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    display: inline-flex;
+    align-items: center;
+}
+.remove-subject-btn:hover {
+    background: #dc2626;
+}
 .add-subject-btn {
     background-color: #10b981;
     color: #fff;
@@ -338,40 +338,31 @@ body {
 }
 </style>
 <script>
-let subjectCount = <?php echo count($existing_subjects) + 1; ?>;
+const subjectOptions = `<?php foreach ($subjects_options as $option): ?><option value="<?php echo $option['subject_id']; ?>"><?php echo htmlspecialchars($option['display_name']); ?></option><?php endforeach; ?>`;
 
 function addSubject() {
     const container = document.getElementById('subjects-container');
     const newSection = document.createElement('div');
     newSection.className = 'subject-section';
-    newSection.id = 'subject-' + subjectCount;
+    newSection.id = 'subject-' + Date.now();
     newSection.innerHTML = `
-        <h4>Subject ${subjectCount}</h4>
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
             <div class="form-group">
-                <label>Subject Code</label>
-                <input type="text" name="subject_code[]" required class="input-field">
-            </div>
-            <div class="form-group">
-                <label>Subject Name</label>
-                <input type="text" name="subject_name[]" required class="input-field">
-            </div>
-            <div class="form-group">
-                <label>Weekly Hours</label>
-                <input type="number" name="weekly_hours[]" min="1" max="10" required class="input-field">
-            </div>
-            <div class="form-group" style="grid-column: span 3; margin-top: 1rem;">
-                <button type="button" onclick="removeSubject('subject-${subjectCount}')" class="remove-subject">Remove Subject</button>
+                <label>Subject</label>
+                <select name="subject_id[]" required class="input-field">
+                    <option value="">Select Subject</option>
+                    ${subjectOptions}
+                </select>
             </div>
         </div>
+        <button type="button" onclick="removeSubject('${newSection.id}')" class="remove-subject" style="margin-top: 0.5rem;"><i class="fas fa-minus"></i> Remove</button>
     `;
     container.appendChild(newSection);
-    subjectCount++;
 }
 
 function removeSubject(id) {
     const element = document.getElementById(id);
-    if (element) {
+    if (element && document.querySelectorAll('.subject-section').length > 1) {
         element.remove();
     }
 }
@@ -415,8 +406,12 @@ document.addEventListener('DOMContentLoaded', function() {
         <h2 class="form-title">Edit Faculty Details</h2>
         <form method="post" class="form-grid">
             <div class="form-group">
-                <label for="username">Username (will be used as Faculty Name)</label>
+                <label for="username">Username</label>
                 <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($faculty_data['username']); ?>" required class="input-field">
+            </div>
+            <div class="form-group">
+                <label for="faculty_name">Faculty Name</label>
+                <input type="text" id="faculty_name" name="faculty_name" value="<?php echo htmlspecialchars($faculty_data['faculty_name']); ?>" required class="input-field" placeholder="Full name of faculty">
             </div>
             <div class="form-group">
                 <label for="email">Email</label>
@@ -433,57 +428,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 </label>
             </div>
             
-            <!-- Existing Subjects -->
-            <?php if (!empty($existing_subjects)): ?>
-                <?php foreach ($existing_subjects as $index => $sub): ?>
-                    <div class="subject-section" id="subject-<?php echo $index; ?>">
-                        <h4>Subject <?php echo $index + 1; ?></h4>
-                        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-                            <div class="form-group">
-                                <label>Subject Code</label>
-                                <input type="text" name="subject_code[]" value="<?php echo htmlspecialchars($sub['subject_code']); ?>" required class="input-field">
-                            </div>
-                            <div class="form-group">
-                                <label>Subject Name</label>
-                                <input type="text" name="subject_name[]" value="<?php echo htmlspecialchars($sub['subject_name']); ?>" required class="input-field">
-                            </div>
-                            <div class="form-group">
-                                <label>Weekly Hours</label>
-                                <input type="number" name="weekly_hours[]" min="1" max="10" value="<?php echo $sub['weekly_hours']; ?>" required class="input-field">
-                            </div>
-                            <div class="form-group" style="grid-column: span 3; margin-top: 1rem;">
-                                <button type="button" onclick="removeSubject('subject-<?php echo $index; ?>')" class="remove-subject">Remove Subject</button>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-            
             <!-- Subjects Section -->
             <div class="form-group" style="grid-column: span 2;">
-                <label>Subjects (One faculty can teach multiple subjects)</label>
+                <label><i class="fas fa-book"></i> Subjects (Select from existing subjects)</label>
                 <div id="subjects-container">
-                    <?php if (empty($existing_subjects)): ?>
+                    <?php if (!empty($existing_subject_ids)): ?>
+                        <?php foreach ($existing_subject_ids as $index => $sel_id): ?>
+                            <div class="subject-section" id="subject-<?php echo $index; ?>">
+                                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                                    <div class="form-group">
+                                        <label>Subject</label>
+                                        <select name="subject_id[]" required class="input-field">
+                                            <option value="">Select Subject</option>
+                                            <?php foreach ($subjects_options as $option): ?>
+                                                <option value="<?php echo $option['subject_id']; ?>" <?php echo ($option['subject_id'] == $sel_id) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($option['display_name']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <?php if ($index > 0): ?>
+                                <button type="button" onclick="removeSubject('subject-<?php echo $index; ?>')" class="remove-subject-btn" style="margin-top: 0.5rem;"><i class="fas fa-minus"></i> Remove</button>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
                         <div class="subject-section" id="subject-0">
-                            <h4>Subject 1</h4>
                             <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
                                 <div class="form-group">
-                                    <label>Subject Code</label>
-                                    <input type="text" name="subject_code[]" required class="input-field">
-                                </div>
-                                <div class="form-group">
-                                    <label>Subject Name</label>
-                                    <input type="text" name="subject_name[]" required class="input-field">
-                                </div>
-                                <div class="form-group">
-                                    <label>Weekly Hours</label>
-                                    <input type="number" name="weekly_hours[]" min="1" max="10" required class="input-field">
+                                    <label>Subject</label>
+                                    <select name="subject_id[]" required class="input-field">
+                                        <option value="">Select Subject</option>
+                                        <?php foreach ($subjects_options as $option): ?>
+                                            <option value="<?php echo $option['subject_id']; ?>"><?php echo htmlspecialchars($option['display_name']); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                 </div>
                             </div>
                         </div>
                     <?php endif; ?>
                 </div>
-                <button type="button" onclick="addSubject()" class="add-subject-btn" style="margin-top: 0.5rem;">Add Another Subject</button>
+                <button type="button" onclick="addSubject()" class="add-subject-btn" style="margin-top: 0.5rem;"><i class="fas fa-plus"></i> Add Another Subject</button>
             </div>
             
             <div class="form-group" style="grid-column: span 2;">
