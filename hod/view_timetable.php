@@ -23,7 +23,7 @@ function fmt_time_ampm($t){
     return date('g:i A', strtotime($t)); 
 }
 
-// Fetch HOD Details
+// Fetch HOD Detail
 $branch_id = 0;
 $college_name = "College Name";
 $address = "";
